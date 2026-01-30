@@ -1,28 +1,38 @@
-@import './fonts.css';
-@import './tailwind.css';
-@import './theme.css';
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --radius-3xl: 1.5rem;
+}
 
 @layer base {
   :root {
-    --safe-area-inset-bottom: env(safe-area-inset-bottom);
+    --background: #ffffff;
+    --foreground: #030213;
+    --card: #ffffff;
+    --primary: #030213;
+    --secondary: #f4f4f5;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a;
+    --destructive: #ef4444;
+    --radius: 0.625rem;
   }
 
   body {
-    /* Évite le rebond sur iOS et assure le plein écran */
-    position: fixed;
-    overflow: hidden;
-    width: 100%;
-    height: 100%;
+    @apply bg-background text-foreground;
+    /* Empêche le rebond élastique sur iOS */
+    overscroll-behavior-y: none;
   }
+}
 
-  #root {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Padding global pour les zones de défilement pour ne pas coller à l'encoche */
-  .pb-safe {
-    padding-bottom: calc(1.5rem + var(--safe-area-inset-bottom));
-  }
+/* Classe pour l'alignement iPhone (Safe Area) */
+.pb-safe {
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
 }
