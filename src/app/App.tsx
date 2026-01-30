@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Home, PieChart, Settings, Wallet, CheckCircle2, Circle } from 'lucide-react';
+import { Plus, Home, PieChart, Settings, Wallet, CheckCircle2, Circle, Trash2, PlusCircle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BalanceCard } from '@/app/components/BalanceCard';
@@ -17,26 +17,25 @@ export default function App() {
   // --- ÉTATS ---
   const [transactions, setTransactions] = useState<any[]>([]);
   const [startingBalance, setStartingBalance] = useState(1000);
-  const [categoryBudgets, setCategoryBudgets] = useState({
-    Alimentation: 500,
-    Loisirs: 200,
-    Transport: 100
-  });
+  const [envelopes, setEnvelopes] = useState<{id: string, name: string, amount: number}[]>([
+    { id: '1', name: 'Alimentation', amount: 500 },
+    { id: '2', name: 'Loisirs', amount: 200 }
+  ]);
 
   // --- PERSISTANCE ---
   useEffect(() => {
-    const saved = localStorage.getItem('budget_data_v2');
+    const saved = localStorage.getItem('eco_budget_final');
     if (saved) {
       const parsed = JSON.parse(saved);
       setTransactions(parsed.transactions || []);
       setStartingBalance(parsed.startingBalance || 1000);
-      setCategoryBudgets(parsed.categoryBudgets || { Alimentation: 500, Loisirs: 200, Transport: 100 });
+      setEnvelopes(parsed.envelopes || []);
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('budget_data_v2', JSON.stringify({ transactions, startingBalance, categoryBudgets }));
-  }, [transactions, startingBalance, categoryBudgets]);
+    localStorage.setItem('eco_budget_final', JSON.stringify({ transactions, startingBalance, envelopes }));
+  }, [transactions, startingBalance, envelopes]);
 
   // --- CALCULS ---
   const stats = useMemo(() => {
@@ -47,17 +46,15 @@ export default function App() {
     const totalInc = income.reduce((a, b) => a + Number(b.amount), 0);
     const balance = startingBalance + totalInc - totalExp;
 
-    // Calcul reste à payer (fixes non cochés)
     const remainingFixed = transactions
       .filter(t => t.isFixed && !t.isCleared && t.type === 'expense')
       .reduce((a, b) => a + Number(b.amount), 0);
 
-    // Calcul enveloppes variables (Budgets - Dépenses déjà faites)
-    const remainingEnvelopes = Object.entries(categoryBudgets).reduce((acc, [cat, limit]) => {
+    const remainingEnvelopes = envelopes.reduce((acc, env) => {
       const spent = transactions
-        .filter(t => t.category === cat && t.type === 'expense')
+        .filter(t => t.category === env.name && t.type === 'expense')
         .reduce((a, b) => a + Number(b.amount), 0);
-      return acc + Math.max(0, limit - spent);
+      return acc + Math.max(0, env.amount - spent);
     }, 0);
 
     const chartData = Object.entries(
@@ -65,17 +62,19 @@ export default function App() {
         acc[t.category] = (acc[t.category] || 0) + Number(t.amount);
         return acc;
       }, {})
-    ).map(([name, value]) => ({ name, value, color: '#3b82f6' }));
+    ).map(([name, value], i) => ({ 
+      name, 
+      value: Number(value), 
+      color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][i % 4] 
+    }));
 
     return { 
-      balance, 
-      income: totalInc, 
-      expenses: totalExp, 
+      balance, income: totalInc, expenses: totalExp, 
       forecastReal: balance - remainingFixed,
       forecastPessimistic: balance - remainingFixed - remainingEnvelopes,
       chartData 
     };
-  }, [transactions, startingBalance, categoryBudgets]);
+  }, [transactions, startingBalance, envelopes]);
 
   const handleSave = (data: any) => {
     if (editingItem?.id) {
@@ -87,30 +86,34 @@ export default function App() {
   };
 
   return (
-    <div className="bg-white min-h-screen flex flex-col font-sans">
-      <main className="flex-1 overflow-y-auto px-6 pt-12 pb-32">
+    <div className="bg-white min-h-screen flex flex-col font-sans overflow-x-hidden">
+      <main className="flex-1 overflow-y-auto px-6 pt-12 pb-40">
         {activeTab === 'dashboard' && (
           <>
             <BalanceCard 
               balance={stats.balance} 
               forecast={stats.forecastPessimistic} 
               income={stats.income} 
-              expenses={stats.expenses} 
+              expenses={stats.expenses}
+              backgroundImage="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000"
             />
 
-            <div className="bg-blue-50 p-4 rounded-2xl mb-8 border border-blue-100">
-               <p className="text-blue-700 text-[10px] font-black uppercase tracking-wider">Atterrissage Réel</p>
-               <p className="text-2xl font-black text-blue-900">{stats.forecastReal.toFixed(2)} €</p>
+            <div className="bg-[#030213] p-5 rounded-3xl mb-8 shadow-figma text-white flex justify-between items-center">
+               <div>
+                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Atterrissage Réel</p>
+                 <p className="text-2xl font-black">{stats.forecastReal.toFixed(2)} €</p>
+               </div>
+               <Wallet className="text-blue-500 opacity-50" size={32} />
             </div>
 
             <div className="mb-8">
-              <h3 className="font-bold mb-4 flex items-center gap-2"><Wallet size={18}/> Pointage Fixe</h3>
-              <Accordion type="single" collapsible className="bg-slate-50 rounded-2xl border px-4">
+              <h3 className="font-bold mb-4 flex items-center gap-2 italic uppercase text-sm">Pointage Fixe</h3>
+              <Accordion type="single" collapsible className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
                 <AccordionItem value="fixes" className="border-none">
-                  <AccordionTrigger className="text-sm font-bold">Détail du mois</AccordionTrigger>
-                  <AccordionContent className="flex flex-col gap-2 pb-2">
+                  <AccordionTrigger className="px-5 py-4 text-sm font-bold">Voir mes prélèvements</AccordionTrigger>
+                  <AccordionContent className="px-3 pb-4 space-y-2">
                     {transactions.filter(t => t.isFixed).map(t => (
-                      <div key={t.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
+                      <div key={t.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-3 flex-1" onClick={() => { setEditingItem(t); setIsDrawerOpen(true); }}>
                           <Checkbox checked={t.isCleared} onCheckedChange={() => handleSave({ ...t, isCleared: !t.isCleared })} onClick={(e) => e.stopPropagation()}/>
                           <span className={`text-sm ${t.isCleared ? 'line-through text-slate-300' : 'font-bold'}`}>{t.description}</span>
@@ -123,55 +126,66 @@ export default function App() {
               </Accordion>
             </div>
 
-            <h3 className="font-bold mb-4">Répartition</h3>
-            <div className="bg-white p-4 rounded-3xl border mb-8 shadow-sm">
+            <h3 className="font-bold mb-4 italic uppercase text-sm">Répartition</h3>
+            <div className="bg-white p-6 rounded-[32px] border border-slate-50 mb-8 shadow-sm">
               <CategoryChart data={stats.chartData} />
             </div>
 
-            <h3 className="font-bold mb-4 italic uppercase text-xs tracking-widest text-slate-400">Flux récents</h3>
+            <h3 className="font-bold mb-4 italic uppercase text-[10px] tracking-widest text-slate-400">Flux récents</h3>
             <TransactionList transactions={transactions.filter(t => !t.isFixed)} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} />
           </>
         )}
 
         {activeTab === 'settings' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-black italic">CONFIG</h2>
-            <div className="p-6 bg-slate-50 rounded-3xl space-y-4">
-               <label className="text-xs font-black text-slate-400 uppercase">Solde de départ</label>
-               <input type="number" value={startingBalance} onChange={(e) => setStartingBalance(Number(e.target.value))} className="w-full p-4 rounded-2xl border-none font-black text-xl shadow-inner" />
+          <div className="space-y-8 pb-20">
+            <h2 className="text-3xl font-black italic tracking-tighter uppercase">Configuration</h2>
+            
+            <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 space-y-4 shadow-inner">
+               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Solde de départ</label>
+               <input type="number" value={startingBalance} onChange={(e) => setStartingBalance(Number(e.target.value))} className="w-full bg-white p-5 rounded-2xl border-none font-black text-2xl shadow-sm outline-none" />
             </div>
 
-            <h3 className="font-bold">Enveloppes mensuelles</h3>
-            <div className="space-y-3">
-              {Object.entries(categoryBudgets).map(([cat, val]) => (
-                <div key={cat} className="flex items-center justify-between p-4 bg-white rounded-2xl border">
-                  <span className="font-bold text-sm">{cat}</span>
-                  <input 
-                    type="number" 
-                    value={val} 
-                    onChange={(e) => setCategoryBudgets(prev => ({ ...prev, [cat]: Number(e.target.value) }))}
-                    className="w-20 text-right font-black outline-none" 
-                  />
-                </div>
-              ))}
+            <div>
+              <div className="flex justify-between items-center mb-4 px-2">
+                <h3 className="font-black italic uppercase text-sm">Enveloppes de dépenses</h3>
+                <button onClick={() => setEnvelopes([...envelopes, {id: uuidv4(), name: 'Nouvelle', amount: 0}])} className="text-blue-600"><PlusCircle size={24}/></button>
+              </div>
+              <div className="space-y-3">
+                {envelopes.map((env) => (
+                  <div key={env.id} className="flex items-center gap-3 p-4 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                    <input 
+                      value={env.name} 
+                      onChange={(e) => setEnvelopes(envelopes.map(x => x.id === env.id ? {...x, name: e.target.value} : x))}
+                      className="flex-1 font-bold text-sm outline-none bg-transparent"
+                    />
+                    <input 
+                      type="number" 
+                      value={env.amount} 
+                      onChange={(e) => setEnvelopes(envelopes.map(x => x.id === env.id ? {...x, amount: Number(e.target.value)} : x))}
+                      className="w-20 text-right font-black outline-none bg-slate-50 p-2 rounded-xl"
+                    />
+                    <button onClick={() => setEnvelopes(envelopes.filter(x => x.id !== env.id))} className="text-red-400 ml-2"><Trash2 size={18}/></button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
       </main>
 
-      {/* NAVIGATION BAR : Le bouton "+" est maintenant ici */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-8 pt-4 pb-10 flex justify-between items-center z-50">
-        <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}>
-          <Home size={28} />
+      {/* BARRE NAVIGATION FIXÉE */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-10 pt-4 pb-10 flex justify-between items-center z-50">
+        <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-300'}>
+          <Home size={28} strokeWidth={activeTab === 'dashboard' ? 3 : 2} />
         </button>
         <button 
           onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
-          className="bg-blue-600 text-white p-4 rounded-full -mt-12 shadow-xl shadow-blue-200 active:scale-95 transition-transform"
+          className="bg-blue-600 text-white p-5 rounded-full -mt-14 shadow-2xl shadow-blue-400 active:scale-90 transition-transform border-8 border-white"
         >
-          <Plus size={32} />
+          <Plus size={32} strokeWidth={3} />
         </button>
-        <button onClick={() => setActiveTab('settings')} className={activeTab === 'settings' ? 'text-blue-600' : 'text-slate-400'}>
-          <Settings size={28} />
+        <button onClick={() => setActiveTab('settings')} className={activeTab === 'settings' ? 'text-blue-600' : 'text-slate-300'}>
+          <Settings size={28} strokeWidth={activeTab === 'settings' ? 3 : 2} />
         </button>
       </nav>
 

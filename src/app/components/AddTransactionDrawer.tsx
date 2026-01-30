@@ -25,7 +25,7 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" />
-        <Drawer.Content className="bg-white flex flex-col rounded-t-[40px] relative left-0 right-0 z-50 outline-none max-w-md mx-auto h-[92vh]">
+        <Drawer.Content className="bg-white flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[92vh]">
           <div className="p-6 bg-white rounded-t-[40px] flex-1 overflow-y-auto">
             <div className="mx-auto w-12 h-1.5 rounded-full bg-slate-200 mb-8" />
             
@@ -70,8 +70,11 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
               </div>
 
               {/* BOUTON DE VALIDATION FIXÉ EN BAS DU TIROIR */}
-              <div className="fixed bottom-10 left-6 right-6 max-w-md mx-auto">
-                <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-blue-200 active:scale-95 transition-all">
+              <div className="mt-8 pb-10"> 
+                <button 
+                  type="submit" 
+                  className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all"
+                >
                   {initialData?.id ? 'Enregistrer' : 'Valider'}
                 </button>
               </div>
