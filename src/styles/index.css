@@ -1,3 +1,28 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+@layer base {
+  :root {
+    --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  }
+
+  body {
+    /* Évite le rebond sur iOS et assure le plein écran */
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+
+  #root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Padding global pour les zones de défilement pour ne pas coller à l'encoche */
+  .pb-safe {
+    padding-bottom: calc(1.5rem + var(--safe-area-inset-bottom));
+  }
+}

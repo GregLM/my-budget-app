@@ -1,65 +1,64 @@
-import React from 'react';
-import { Transaction } from '@/types';
-import { ArrowUpRight, ArrowDownLeft, ShoppingBag, Coffee, Home, Car, Zap, Briefcase } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import React, { useEffect } from 'react';
+import { Drawer } from 'vaul';
+import { useForm } from 'react-hook-form';
+import { X, Trash2 } from 'lucide-react';
 
-interface TransactionListProps {
-  transactions: Transaction[];
-}
+export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, onDelete }: any) {
+  const { register, handleSubmit, reset, watch, setValue } = useForm();
 
-const getCategoryIcon = (category: string) => {
-  switch (category.toLowerCase()) {
-    case 'alimentation': return <ShoppingBag className="h-5 w-5 text-orange-500" />;
-    case 'logement': return <Home className="h-5 w-5 text-blue-500" />;
-    case 'transport': return <Car className="h-5 w-5 text-indigo-500" />;
-    case 'loisirs': return <Coffee className="h-5 w-5 text-pink-500" />;
-    case 'salaire': 
-    case 'revenus': return <Briefcase className="h-5 w-5 text-emerald-500" />;
-    default: return <Zap className="h-5 w-5 text-gray-500" />;
-  }
-};
-
-const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
-    case 'alimentation': return 'bg-orange-100';
-    case 'logement': return 'bg-blue-100';
-    case 'transport': return 'bg-indigo-100';
-    case 'loisirs': return 'bg-pink-100';
-    case 'salaire': 
-    case 'revenus': return 'bg-emerald-100';
-    default: return 'bg-gray-100';
-  }
-}
-
-export function TransactionList({ transactions }: TransactionListProps) {
-  if (transactions.length === 0) {
-    return <div className="text-center text-gray-500 py-8">Aucune transaction récente</div>;
-  }
-
-  // Sort by date desc
-  const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // Remplit le formulaire si on est en mode édition
+  useEffect(() => {
+    if (initialData) reset(initialData);
+    else reset({ amount: '', description: '', category: 'Alimentation', type: 'expense', isFixed: false, date: new Date().toISOString().split('T')[0] });
+  }, [initialData, open, reset]);
 
   return (
-    <div className="flex flex-col gap-4">
-      {sorted.map((t) => (
-        <div key={t.id} className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${getCategoryColor(t.category)}`}>
-              {getCategoryIcon(t.category)}
-            </div>
-            <div>
-              <div className="font-semibold text-gray-900">{t.description}</div>
-              <div className="text-xs text-gray-500 capitalize">
-                {format(new Date(t.date), 'dd MMM', { locale: fr })} • {t.category}
+    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" />
+        <Drawer.Content className="bg-white flex flex-col rounded-t-[32px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[90vh]">
+          <div className="p-6 overflow-y-auto flex-1">
+            <div className="mx-auto w-12 h-1.5 rounded-full bg-gray-200 mb-8" />
+            
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">{initialData ? 'Modifier' : 'Opération'}</h2>
+              <div className="flex gap-2">
+                {initialData && (
+                  <button onClick={() => { onDelete(initialData.id); onOpenChange(false); }} className="p-2 bg-red-50 text-red-500 rounded-full">
+                    <Trash2 size={20} />
+                  </button>
+                )}
+                <button onClick={() => onOpenChange(false)} className="p-2 bg-gray-100 rounded-full"><X size={20} /></button>
               </div>
             </div>
+
+            <form onSubmit={handleSubmit(onAdd)} className="space-y-6 pb-32">
+              <div className="flex bg-gray-100 p-1 rounded-xl">
+                {['expense', 'income'].map((t) => (
+                  <button key={t} type="button" onClick={() => setValue('type', t)} className={`flex-1 py-2 rounded-lg text-sm font-bold capitalize ${watch('type') === t ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
+                    {t === 'expense' ? 'Dépense' : 'Revenu'}
+                  </button>
+                ))}
+              </div>
+
+              <input type="number" step="0.01" {...register('amount', { required: true })} className="w-full text-5xl font-bold text-center outline-none" placeholder="0.00" />
+              
+              <input type="text" {...register('description', { required: true })} placeholder="Description" className="w-full p-4 bg-gray-50 rounded-2xl outline-none" />
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                <span className="text-sm font-medium">Charge Fixe ?</span>
+                <input type="checkbox" {...register('isFixed')} className="w-6 h-6 rounded-md" />
+              </div>
+
+              <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t pb-safe z-50">
+                <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg">
+                  {initialData ? 'Enregistrer' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
           </div>
-          <div className={`text-right font-bold ${t.type === 'income' ? 'text-emerald-600' : 'text-gray-900'}`}>
-            {t.type === 'income' ? '+' : '-'}{t.amount.toLocaleString('fr-FR')} €
-          </div>
-        </div>
-      ))}
-    </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }

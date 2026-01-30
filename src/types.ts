@@ -1,4 +1,4 @@
-export type TransactionType = 'income' | 'expense' | 'other';
+export type TransactionType = 'income' | 'expense';
 
 export interface Transaction {
   id: string;
@@ -6,11 +6,12 @@ export interface Transaction {
   type: TransactionType;
   category: string;
   description: string;
-  date: string; // ISO date string
+  date: string;
+  isFixed: boolean; // Nouveau : pour savoir si c'est une charge fixe
+  isCleared?: boolean; // Pour le pointage
 }
 
-export interface BudgetState {
-  balance: number;
-  forecastBalance: number;
-  transactions: Transaction[];
+export interface CategoryBudget {
+  name: string;
+  limit: number;
 }
