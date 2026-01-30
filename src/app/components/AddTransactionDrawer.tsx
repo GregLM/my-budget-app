@@ -1,144 +1,70 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Drawer } from 'vaul';
 import { useForm } from 'react-hook-form';
-import { TransactionType } from '@/types';
-import { Plus, X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 
-interface AddTransactionDrawerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onAdd: (data: any) => void;
-}
+export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, onDelete }: any) {
+  const { register, handleSubmit, reset, watch, setValue } = useForm();
 
-export function AddTransactionDrawer({ open, onOpenChange, onAdd }: AddTransactionDrawerProps) {
-  const { register, handleSubmit, reset, watch, setValue } = useForm({
-    defaultValues: {
-      amount: '',
-      description: '',
-      category: 'Alimentation',
-      type: 'expense' as TransactionType,
-      date: new Date().toISOString().split('T')[0],
+  useEffect(() => {
+    if (initialData) {
+      reset(initialData);
+    } else {
+      reset({ amount: '', description: '', category: 'Alimentation', type: 'expense', date: new Date().toISOString().split('T')[0] });
     }
-  });
-
-  const type = watch('type');
+  }, [initialData, reset, open]);
 
   const onSubmit = (data: any) => {
-    onAdd({
-      ...data,
-      amount: parseFloat(data.amount),
-      date: new Date(data.date).toISOString(),
-    });
-    reset();
+    onAdd(data);
     onOpenChange(false);
   };
-
-  const categories = type === 'income' 
-    ? ['Salaire', 'Freelance', 'Remboursement', 'Autre']
-    : ['Alimentation', 'Logement', 'Transport', 'Loisirs', 'Santé', 'Autre'];
 
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 bg-black/40 z-40" />
-        <Drawer.Content className="bg-white flex flex-col rounded-t-[32px] mt-24 h-[90vh] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto">
-          <div className="p-4 bg-white rounded-t-[32px] flex-1">
-            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-300 mb-8" />
+        <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" />
+        <Drawer.Content className="bg-white flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[85vh]">
+          <div className="p-6 bg-white rounded-t-[40px] flex-1 overflow-y-auto pb-40">
+            <div className="mx-auto w-12 h-1.5 rounded-full bg-slate-200 mb-8" />
             
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Nouvelle opération</h2>
-              <button onClick={() => onOpenChange(false)} className="p-2 bg-gray-100 rounded-full">
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-black italic">{initialData ? 'Modifier' : 'Ajouter'}</h2>
+              <div className="flex gap-2">
+                {onDelete && (
+                  <button onClick={() => { onDelete(); onOpenChange(false); }} className="p-3 bg-red-50 rounded-2xl text-red-500">
+                    <Trash2 size={20} />
+                  </button>
+                )}
+                <button onClick={() => onOpenChange(false)} className="p-3 bg-slate-100 rounded-2xl text-slate-500">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-              
-              {/* Type Selector */}
-              <div className="flex bg-gray-100 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setValue('type', 'expense')}
-                  className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-all ${
-                    type === 'expense' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'
-                  }`}
-                >
-                  Dépense
+              <div className="flex bg-slate-100 p-1 rounded-2xl">
+                <button type="button" onClick={() => setValue('type', 'expense')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase ${watch('type') === 'expense' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>Dépense</button>
+                <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase ${watch('type') === 'income' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>Revenu</button>
+              </div>
+
+              <input type="number" step="0.01" {...register('amount', { required: true })} className="w-full text-5xl font-black text-center py-8 outline-none placeholder:text-slate-200" placeholder="0.00 €" />
+
+              <input type="text" {...register('description', { required: true })} placeholder="Libellé de l'opération" className="w-full bg-slate-50 p-5 rounded-2xl border-none font-bold outline-none" />
+
+              <div className="flex flex-wrap gap-2">
+                {['Alimentation', 'Logement', 'Transport', 'Loisirs', 'Santé', 'Salaire'].map(cat => (
+                  <button key={cat} type="button" onClick={() => setValue('category', cat)} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-100 text-slate-400'}`}>{cat}</button>
+                ))}
+              </div>
+
+              <input type="date" {...register('date')} className="w-full bg-slate-50 p-5 rounded-2xl border-none font-bold outline-none" />
+
+              {/* BOUTON CORRIGÉ POUR IPHONE */}
+              <div className="fixed bottom-10 left-6 right-6 max-w-md mx-auto">
+                <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-blue-200 active:scale-95 transition-all">
+                  {initialData ? 'Enregistrer' : 'Valider l\'opération'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setValue('type', 'income')}
-                  className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-all ${
-                    type === 'income' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'
-                  }`}
-                >
-                  Revenu
-                </button>
               </div>
-
-              {/* Amount */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Montant</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    {...register('amount', { required: true })}
-                    className="block w-full rounded-2xl border-gray-200 bg-gray-50 p-4 text-3xl font-bold focus:border-blue-500 focus:ring-blue-500 outline-none"
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xl">€</div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Courses, Loyer..."
-                  {...register('description', { required: true })}
-                  className="block w-full rounded-xl border-gray-200 bg-gray-50 p-4 focus:border-blue-500 focus:ring-blue-500 outline-none font-medium"
-                />
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setValue('category', cat)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                        watch('category') === cat 
-                          ? 'bg-black text-white' 
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-               {/* Date */}
-               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                <input
-                  type="date"
-                  {...register('date', { required: true })}
-                  className="block w-full rounded-xl border-gray-200 bg-gray-50 p-4 focus:border-blue-500 focus:ring-blue-500 outline-none font-medium"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg mt-4 shadow-lg shadow-blue-200 active:scale-95 transition-transform"
-              >
-                Ajouter
-              </button>
             </form>
           </div>
         </Drawer.Content>
