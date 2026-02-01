@@ -18,8 +18,17 @@ export default function App() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [startingBalance, setStartingBalance] = useState<number | string>(1000);
   const [envelopes, setEnvelopes] = useState<{id: string, name: string, amount: number}[]>([
-    { id: '1', name: 'Alimentation', amount: 500 },
-    { id: '2', name: 'Loisirs', amount: 200 }
+    { id: '1', name: 'Revenus', amount: 0 },
+    { id: '2', name: 'Emprunt', amount: 1484.84 },
+    { id: '3', name: 'Alim.', amount: 600 },
+    { id: '4', name: 'Abo. et Tel', amount: 300 },
+    { id: '5', name: 'Energie', amount: 300 },  
+    { id: '6', name: 'Transport', amount: 120 },
+    { id: '7', name: 'Loisirs', amount: 200 },
+    { id: '8', name: 'Epargne', amount: 400 },
+    { id: '9', name: 'Impots/taxes', amount: 0 },
+    { id: '10', name: 'Santé', amount: 0 },
+    
   ]);
 
   // --- PERSISTANCE ---
