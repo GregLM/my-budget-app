@@ -182,8 +182,16 @@ export default function App() {
                 ))}
               </div>
             </div>
-            <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold">
-                      Réinitialiser toutes les données
+            <button 
+              onClick={() => { 
+                if (window.confirm("⚠️ Attention : Cela va supprimer définitivement toutes vos transactions et réglages. Continuer ?")) {
+                  localStorage.clear(); 
+                  window.location.reload(); 
+                }
+              }} 
+              className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold active:scale-95 transition-transform"
+            >
+              Réinitialiser toutes les données
             </button>
           </div>
         )}
