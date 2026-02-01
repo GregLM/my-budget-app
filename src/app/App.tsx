@@ -171,7 +171,10 @@ export default function App() {
             <TransactionList 
               transactions={transactions} 
               onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }}
-              onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}
+              onToggleCheck={(t) => {
+                const updated = { ...t, isCleared: !t.isCleared };
+                handleSave(updated); // On réutilise handleSave pour mettre à jour la liste
+              }}
             />
           </>
         )}

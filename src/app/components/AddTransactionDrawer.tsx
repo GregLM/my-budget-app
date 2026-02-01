@@ -84,6 +84,14 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                   </button>
                 ))}
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Date de l'opération</label>
+                <input 
+                  type="date" 
+                  {...register('date', { required: true })} 
+                  className="w-full bg-slate-50 p-5 rounded-2xl border-none font-bold outline-none text-slate-600" 
+                />
+              </div>
 
               <div className="mt-8 pb-10"> 
                 <button 
