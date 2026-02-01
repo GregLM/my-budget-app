@@ -1,30 +1,45 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme {
-  --color-background: #ffffff;
-  --color-foreground: #030213;
-  --color-card: #ffffff;
-  --color-primary: #030213;
+  /* On lie les variables CSS aux utilitaires Tailwind */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  
   --radius-3xl: 1.5rem;
   --radius-4xl: 2.5rem;
-  --shadow-figma: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #030213;
+  --card: #ffffff;
+  --muted: #f3f3f5;
+  --muted-foreground: #717182;
+  --border: rgba(0, 0, 0, 0.08);
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #11111e;
+  --muted: #1e1e2e;
+  --muted-foreground: #94a3b8;
+  --border: rgba(255, 255, 255, 0.1);
+  color-scheme: dark;
 }
 
 @layer base {
   body {
-    @apply bg-background text-foreground;
-    overscroll-behavior-y: none; /* Bloque le rebond Safari */
-  }
-
-  /* Pour éviter que le clavier iPhone ne pousse le bouton au milieu */
-  .fixed-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding-bottom: env(safe-area-inset-bottom);
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    z-index: 40;
+    /* On force l'application des variables au démarrage */
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply transition-colors duration-300;
+    overscroll-behavior-y: none;
   }
 }
