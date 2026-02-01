@@ -156,10 +156,22 @@ export default function App() {
               <CategoryChart data={stats.chartData} />
             </div>
 
-            <h3 className="font-bold mb-4 italic uppercase text-[10px] tracking-widest text-slate-400">Flux récents</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black italic uppercase text-sm tracking-widest text-slate-400">Mouvements du mois</h3>
+              <div className="flex gap-2">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                  <div className="w-2 h-2 rounded-full border border-dashed border-blue-400" /> Prévi
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                  <div className="w-2 h-2 rounded-full bg-slate-200" /> Réel
+                </div>
+              </div>
+            </div>
+
             <TransactionList 
-              transactions={transactions.filter(t => !t.isFixed)} 
-              onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} 
+              transactions={transactions} 
+              onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }}
+              onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}
             />
           </>
         )}
@@ -230,6 +242,8 @@ export default function App() {
                     />
                     <input 
                       type="number" 
+                      step="0.01"
+                      inputMode="decimal"
                       value={env.amount} 
                       onChange={(e) => setEnvelopes(envelopes.map(x => x.id === env.id ? {...x, amount: Number(e.target.value)} : x))}
                       className="w-20 text-right font-black outline-none bg-slate-50 p-2 rounded-xl"
