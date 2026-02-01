@@ -35,63 +35,63 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" />
-        <Drawer.Content className="bg-white dark:bg-slate-950 flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[92vh] border-t dark:border-slate-800">
+        <Drawer.Content className="bg-background flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[92vh] border-t border-border">
           <div className="p-6 flex-1 overflow-y-auto">
-            <div className="mx-auto w-12 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 mb-8" />
+            <div className="mx-auto w-12 h-1.5 rounded-full bg-muted mb-8" />
             
             <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-black italic tracking-tighter uppercase dark:text-white">
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase text-foreground">
                 {initialData?.id ? 'Modifier' : isFixed ? 'Nouveau Fixe' : 'Ajouter'}
               </h2>
               <div className="flex gap-2">
                 {initialData?.id && (
-                  <button type="button" onClick={() => onDelete(initialData.id)} className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl text-red-500 active:scale-90 transition-transform">
+                  <button type="button" onClick={() => { onDelete(initialData.id); onOpenChange(false); }} className="p-3 bg-red-500/10 rounded-2xl text-red-500 active:scale-90 transition-transform">
                     <Trash2 size={20} />
                   </button>
                 )}
-                <button onClick={() => onOpenChange(false)} className="p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-slate-500 dark:text-slate-400">
+                <button onClick={() => onOpenChange(false)} className="p-3 bg-muted rounded-2xl text-muted-foreground">
                   <X size={20} />
                 </button>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 pb-40">
-              <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl">
-                <button type="button" onClick={() => setValue('type', 'expense')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentType === 'expense' ? 'bg-white dark:bg-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-600'}`}>Dépense</button>
-                <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentType === 'income' ? 'bg-white dark:bg-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-600'}`}>Revenu</button>
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 pb-10">
+              <div className="flex bg-muted p-1 rounded-2xl">
+                <button type="button" onClick={() => setValue('type', 'expense')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentType === 'expense' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>Dépense</button>
+                <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentType === 'income' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>Revenu</button>
               </div>
 
               <input 
                 type="number" step="0.01" inputMode="decimal"
                 {...register('amount', { required: true })} 
-                className="w-full text-6xl font-black text-center py-6 outline-none bg-transparent dark:text-white placeholder:text-slate-200 dark:placeholder:text-slate-800" 
+                className="w-full text-6xl font-black text-center py-6 outline-none bg-transparent text-foreground placeholder:text-muted" 
                 placeholder="0.00" 
                 autoFocus 
               />
 
               <input 
                 type="text" {...register('description', { required: true })} 
-                placeholder="Libellé (Loyer, Courses...)" 
-                className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-bold outline-none dark:text-white dark:placeholder:text-slate-600" 
+                placeholder="Libellé" 
+                className="w-full bg-muted p-5 rounded-2xl border-none font-bold outline-none text-foreground" 
               />
 
-              <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl">
+              <div className="flex items-center justify-between p-5 bg-muted rounded-2xl">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${isFixed ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'}`}>
+                  <div className={`p-2 rounded-lg ${isFixed ? 'bg-blue-600 text-white' : 'bg-background text-muted-foreground'}`}>
                     <Repeat size={18} />
                   </div>
-                  <span className="text-sm font-bold dark:text-white">Charge fixe récurrente</span>
+                  <span className="text-sm font-bold text-foreground">Charge fixe récurrente</span>
                 </div>
                 <input type="checkbox" {...register('isFixed')} className="w-6 h-6 rounded-lg accent-blue-600" />
               </div>
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                  <Calendar size={12} /> Date de l'opération
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-2 flex items-center gap-2">
+                  <Calendar size={12} /> Date
                 </label>
                 <input 
                   type="date" {...register('date', { required: true })} 
-                  className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-bold outline-none text-slate-600 dark:text-slate-300" 
+                  className="w-full bg-muted p-5 rounded-2xl border-none font-bold outline-none text-foreground" 
                 />
               </div>
 
@@ -99,18 +99,16 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                 {categories.map((cat: string) => (
                   <button 
                     key={cat} type="button" onClick={() => setValue('category', cat)} 
-                    className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-slate-900 dark:bg-blue-600 border-slate-900 dark:border-blue-600 text-white' : 'border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500'}`}
+                    className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-foreground border-foreground text-background' : 'border-muted text-muted-foreground'}`}
                   >
                     {cat}
                   </button>
                 ))}
               </div>
 
-              <div className="mt-8"> 
-                <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all">
-                  {initialData?.id ? 'Enregistrer' : 'Valider'}
-                </button>
-              </div>
+              <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all mt-4">
+                {initialData?.id ? 'Enregistrer' : 'Valider'}
+              </button>
             </form>
           </div>
         </Drawer.Content>

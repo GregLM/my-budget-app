@@ -1,19 +1,18 @@
+@import "tailwindcss";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 16px;
   --background: #ffffff;
   --foreground: #030213;
   --card: #ffffff;
-  --primary: #030213;
   --muted: #f3f3f5;
   --muted-foreground: #717182;
   --border: rgba(0, 0, 0, 0.1);
-  --radius: 1.5rem;
 }
 
 .dark {
-  --background: #030213;
+  --background: #000000; /* Noir pur pour iPhone OLED */
   --foreground: #ffffff;
   --card: #11111e;
   --muted: #1e1e2e;
@@ -29,13 +28,9 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
-  --radius-3xl: var(--radius);
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
   body {
     @apply bg-background text-foreground transition-colors duration-300;
     overscroll-behavior-y: none;

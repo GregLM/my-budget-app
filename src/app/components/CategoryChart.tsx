@@ -4,8 +4,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 export function CategoryChart({ data }: { data: any[] }) {
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-        <span className="text-slate-400 dark:text-slate-600 text-sm italic font-medium">Aucune donnée ce mois</span>
+      <div className="flex items-center justify-center h-48 bg-muted/50 rounded-2xl border border-dashed border-border">
+        <span className="text-muted-foreground text-sm italic font-medium">Aucune donnée ce mois</span>
       </div>
     );
   }
@@ -31,13 +31,12 @@ export function CategoryChart({ data }: { data: any[] }) {
             contentStyle={{ 
               borderRadius: '20px', 
               border: 'none', 
-              backgroundColor: 'rgba(15, 23, 42, 0.95)',
-              color: '#fff',
+              backgroundColor: 'var(--foreground)',
+              color: 'var(--background)',
               fontSize: '12px',
-              fontWeight: 'bold',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+              fontWeight: 'bold'
             }}
-            itemStyle={{ color: '#fff' }}
+            itemStyle={{ color: 'var(--background)' }}
           />
         </PieChart>
       </ResponsiveContainer>
