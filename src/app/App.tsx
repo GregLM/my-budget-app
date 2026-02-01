@@ -154,26 +154,33 @@ export default function App() {
             <h2 className="text-3xl font-black italic tracking-tighter uppercase">Configuration</h2>
             
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                Solde de départ au 1er du mois
-              </label>
-              <input 
-                type="text" 
-                inputMode="decimal" 
-                placeholder="0,00"
-                // On affiche une chaîne vide si c'est 0 pour ne pas gêner la saisie
-                value={startingBalance === 0 ? '' : startingBalance.toString().replace('.', ',')} 
-                onChange={(e) => {
-                  // On remplace la virgule par un point pour que le code comprenne le nombre
-                  const val = e.target.value.replace(',', '.');
-                  // On n'autorise que les chiffres et un seul point
-                  if (/^\d*\.?\d*$/.test(val)) {
-                    setStartingBalance(val === '' ? 0 : Number(val));
-                  }
-                }}
-                className="w-full p-5 rounded-2xl border-none font-black text-2xl shadow-sm focus:ring-2 ring-blue-500 outline-none" 
-              />
-            </div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  Solde de départ au 1er du mois
+                </label>
+                <input 
+                  type="text" 
+                  inputMode="decimal" 
+                  placeholder="0,00"
+                  // On gère l'affichage pour autoriser la virgule visuelle
+                  value={startingBalance === 0 ? '' : startingBalance.toString().replace('.', ',')} 
+                  onChange={(e) => {
+                    // 1. On récupère la valeur brute (ex: "10,5")
+                    const rawValue = e.target.value;
+                    
+                    // 2. On autorise uniquement chiffres, point et virgule via une Regex
+                    if (/^[0-9.,]*$/.test(rawValue)) {
+                      // 3. On convertit pour le stockage (virgule -> point)
+                      const normalizedValue = rawValue.replace(',', '.');
+                      
+                      // 4. On ne met à jour que si c'est un nombre valide ou vide
+                      if (normalizedValue === '' || !isNaN(Number(normalizedValue))) {
+                        setStartingBalance(normalizedValue === '' ? 0 : normalizedValue); 
+                      }
+                    }
+                  }}
+                  className="w-full p-5 rounded-2xl border-none font-black text-2xl shadow-sm focus:ring-2 ring-blue-500 outline-none" 
+                />
+              </div>
             <div>
               <div className="flex justify-between items-center mb-4 px-2">
                 <h3 className="font-black italic uppercase text-sm">Enveloppes de dépenses</h3>
