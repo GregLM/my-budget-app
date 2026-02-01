@@ -153,11 +153,20 @@ export default function App() {
           <div className="space-y-8 pb-20">
             <h2 className="text-3xl font-black italic tracking-tighter uppercase">Configuration</h2>
             
-            <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 space-y-4 shadow-inner">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Solde de départ</label>
-               <input type="number" value={startingBalance} onChange={(e) => setStartingBalance(Number(e.target.value))} className="w-full bg-white p-5 rounded-2xl border-none font-black text-2xl shadow-sm outline-none" />
-            </div>
-
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  Solde de départ au 1er du mois
+                </label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  inputMode="decimal"
+                  value={startingBalance} 
+                  onChange={(e) => setStartingBalance(Number(e.target.value))} 
+                  className="w-full p-5 rounded-2xl border-none font-black text-2xl shadow-sm focus:ring-2 ring-blue-500 outline-none" 
+                  placeholder="0.00 €"
+                />
+              </div>
             <div>
               <div className="flex justify-between items-center mb-4 px-2">
                 <h3 className="font-black italic uppercase text-sm">Enveloppes de dépenses</h3>
