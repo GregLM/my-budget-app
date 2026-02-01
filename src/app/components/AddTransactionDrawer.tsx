@@ -64,7 +64,7 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {categories..map(cat => (
+                {categories.map.map(cat => (
                   <button key={cat} type="button" onClick={() => setValue('category', cat)} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-100 text-slate-400'}`}>{cat}</button>
                 ))}
               </div>
