@@ -13,6 +13,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [isDark, setIsDark] = useState(false);
 
   // --- ÉTATS ---
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -45,6 +46,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('eco_budget_final', JSON.stringify({ transactions, startingBalance, envelopes }));
   }, [transactions, startingBalance, envelopes]);
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
 
   // --- CALCULS ---
   const stats = useMemo(() => {
@@ -267,7 +276,20 @@ export default function App() {
                 ))}
               </div>
             </div>
-
+            <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-600 text-white">
+                  {isDark ? <Moon size={20} /> : <Sun size={20} />}
+                </div>
+                <span className="font-bold text-sm">Mode Sombre</span>
+              </div>
+              <button 
+                onClick={() => setIsDark(!isDark)}
+                className={`w-14 h-8 rounded-full transition-colors relative ${isDark ? 'bg-blue-600' : 'bg-slate-300'}`}
+              >
+                <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDark ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>      
             <button 
               onClick={() => { if (window.confirm("⚠️ Tout supprimer ?")) { localStorage.clear(); window.location.reload(); } }} 
               className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold active:scale-95 transition-transform mt-10"

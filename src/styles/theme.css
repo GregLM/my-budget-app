@@ -179,3 +179,23 @@
     line-height: 1.5;
   }
 }
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #030213;
+    /* ... tes autres variables ... */
+  }
+
+  .dark {
+    --background: #030213;
+    --foreground: #ffffff;
+    --card: #11111e;
+    --border: rgba(255, 255, 255, 0.1);
+    --muted: #1e1e2e;
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+}
