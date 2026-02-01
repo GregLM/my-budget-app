@@ -128,12 +128,12 @@ export default function App() {
               backgroundImage="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000"
             />
 
-            <div className="bg-[#030213] dark:bg-slate-900 p-5 rounded-3xl mb-8 shadow-xl text-white flex justify-between items-center border border-transparent dark:border-slate-800">
-               <div>
-                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Atterrissage Réel</p>
-                 <p className="text-2xl font-black">{stats.forecastReal.toFixed(2)} €</p>
-               </div>
-               <Wallet className="text-blue-500 opacity-50" size={32} />
+            <div className="bg-muted dark:bg-slate-900 p-5 rounded-3xl mb-8 shadow-xl text-foreground dark:text-white flex justify-between items-center border border-border">
+              <div>
+                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Atterrissage Réel</p>
+                <p className="text-2xl font-black">{stats.forecastReal.toFixed(2)} €</p>
+              </div>
+              <Wallet className="text-blue-500 opacity-50" size={32} />
             </div>
 
             <h3 className="font-bold mb-4 italic uppercase text-sm dark:text-white">Répartition</h3>
