@@ -181,10 +181,10 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold">
-                      Réinitialiser toutes les données
-                    </button>
             </div>
+            <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold">
+                      Réinitialiser toutes les données
+            </button>
           </div>
         )}
       </main>
