@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Drawer } from 'vaul';
 import { useForm } from 'react-hook-form';
-import { X, Trash2, Repeat } from 'lucide-react';
+import { X, Trash2, Repeat, Calendar } from 'lucide-react';
 
 export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, onDelete, categories = [] }: any) {
   const { register, handleSubmit, reset, watch, setValue } = useForm();
@@ -29,75 +29,85 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
   };
 
   const isFixed = watch('isFixed');
+  const currentType = watch('type');
 
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" />
-        <Drawer.Content className="bg-white flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[92vh]">
-          <div className="p-6 bg-white rounded-t-[40px] flex-1 overflow-y-auto">
-            <div className="mx-auto w-12 h-1.5 rounded-full bg-slate-200 mb-8" />
+        <Drawer.Content className="bg-white dark:bg-slate-950 flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[92vh] border-t dark:border-slate-800">
+          <div className="p-6 flex-1 overflow-y-auto">
+            <div className="mx-auto w-12 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 mb-8" />
             
             <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-black italic tracking-tighter uppercase">
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase dark:text-white">
                 {initialData?.id ? 'Modifier' : isFixed ? 'Nouveau Fixe' : 'Ajouter'}
               </h2>
               <div className="flex gap-2">
                 {initialData?.id && (
-                  <button onClick={() => { onDelete(initialData.id); onOpenChange(false); }} className="p-3 bg-red-50 rounded-2xl text-red-500 active:scale-90 transition-transform">
+                  <button type="button" onClick={() => onDelete(initialData.id)} className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl text-red-500 active:scale-90 transition-transform">
                     <Trash2 size={20} />
                   </button>
                 )}
-                <button onClick={() => onOpenChange(false)} className="p-3 bg-slate-100 rounded-2xl text-slate-500"><X size={20} /></button>
+                <button onClick={() => onOpenChange(false)} className="p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-slate-500 dark:text-slate-400">
+                  <X size={20} />
+                </button>
               </div>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 pb-40">
-              <div className="flex bg-slate-100 p-1 rounded-2xl">
-                <button type="button" onClick={() => setValue('type', 'expense')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest ${watch('type') === 'expense' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>Dépense</button>
-                <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest ${watch('type') === 'income' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>Revenu</button>
+              <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl">
+                <button type="button" onClick={() => setValue('type', 'expense')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentType === 'expense' ? 'bg-white dark:bg-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-600'}`}>Dépense</button>
+                <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${currentType === 'income' ? 'bg-white dark:bg-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-600'}`}>Revenu</button>
               </div>
 
-              <input type="number" step="0.01" {...register('amount', { required: true })} className="w-full text-6xl font-black text-center py-6 outline-none placeholder:text-slate-200" placeholder="0.00" autoFocus />
+              <input 
+                type="number" step="0.01" inputMode="decimal"
+                {...register('amount', { required: true })} 
+                className="w-full text-6xl font-black text-center py-6 outline-none bg-transparent dark:text-white placeholder:text-slate-200 dark:placeholder:text-slate-800" 
+                placeholder="0.00" 
+                autoFocus 
+              />
 
-              <input type="text" {...register('description', { required: true })} placeholder="Libellé (Loyer, Courses...)" className="w-full bg-slate-50 p-5 rounded-2xl border-none font-bold outline-none" />
+              <input 
+                type="text" {...register('description', { required: true })} 
+                placeholder="Libellé (Loyer, Courses...)" 
+                className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-bold outline-none dark:text-white dark:placeholder:text-slate-600" 
+              />
 
-              <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl">
+              <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${isFixed ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                  <div className={`p-2 rounded-lg ${isFixed ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'}`}>
                     <Repeat size={18} />
                   </div>
-                  <span className="text-sm font-bold">Charge fixe récurrente</span>
+                  <span className="text-sm font-bold dark:text-white">Charge fixe récurrente</span>
                 </div>
                 <input type="checkbox" {...register('isFixed')} className="w-6 h-6 rounded-lg accent-blue-600" />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                  <Calendar size={12} /> Date de l'opération
+                </label>
+                <input 
+                  type="date" {...register('date', { required: true })} 
+                  className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-bold outline-none text-slate-600 dark:text-slate-300" 
+                />
               </div>
 
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat: string) => (
                   <button 
-                    key={cat} 
-                    type="button" 
-                    onClick={() => setValue('category', cat)} 
-                    className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-100 text-slate-400'}`}
+                    key={cat} type="button" onClick={() => setValue('category', cat)} 
+                    className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-slate-900 dark:bg-blue-600 border-slate-900 dark:border-blue-600 text-white' : 'border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500'}`}
                   >
                     {cat}
                   </button>
                 ))}
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Date de l'opération</label>
-                <input 
-                  type="date" 
-                  {...register('date', { required: true })} 
-                  className="w-full bg-slate-50 p-5 rounded-2xl border-none font-bold outline-none text-slate-600" 
-                />
-              </div>
 
-              <div className="mt-8 pb-10"> 
-                <button 
-                  type="submit" 
-                  className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all"
-                >
+              <div className="mt-8"> 
+                <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all">
                   {initialData?.id ? 'Enregistrer' : 'Valider'}
                 </button>
               </div>
