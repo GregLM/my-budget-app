@@ -178,12 +178,12 @@ export default function App() {
                       className="w-20 text-right font-black outline-none bg-slate-50 p-2 rounded-xl"
                     />
                     <button onClick={() => setEnvelopes(envelopes.filter(x => x.id !== env.id))} className="text-red-400 ml-2"><Trash2 size={18}/></button>
-                    <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold">
-                      Réinitialiser toutes les données
-                    </button>
                   </div>
                 ))}
               </div>
+              <div>                    <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold">
+                      Réinitialiser toutes les données
+                    </button></div>
             </div>
           </div>
         )}
