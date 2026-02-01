@@ -3,16 +3,25 @@ import { Drawer } from 'vaul';
 import { useForm } from 'react-hook-form';
 import { X, Trash2, Repeat } from 'lucide-react';
 
-export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, onDelete }: any) {
+export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, onDelete, categories = [] }: any) {
   const { register, handleSubmit, reset, watch, setValue } = useForm();
 
   useEffect(() => {
-    if (initialData) {
-      reset({ ...initialData, amount: Math.abs(initialData.amount) });
-    } else {
-      reset({ amount: '', description: '', category: 'Alimentation', type: 'expense', isFixed: false, date: new Date().toISOString().split('T')[0] });
+    if (open) {
+      if (initialData) {
+        reset({ ...initialData, amount: Math.abs(initialData.amount) });
+      } else {
+        reset({ 
+          amount: '', 
+          description: '', 
+          category: categories[0] || 'Alimentation', 
+          type: 'expense', 
+          isFixed: false, 
+          date: new Date().toISOString().split('T')[0] 
+        });
+      }
     }
-  }, [initialData, reset, open]);
+  }, [initialData, reset, open, categories]);
 
   const onSubmit = (data: any) => {
     onAdd({ ...data, amount: Number(data.amount) });
@@ -64,12 +73,18 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {categories.map.map(cat => (
-                  <button key={cat} type="button" onClick={() => setValue('category', cat)} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-100 text-slate-400'}`}>{cat}</button>
+                {categories.map((cat: string) => (
+                  <button 
+                    key={cat} 
+                    type="button" 
+                    onClick={() => setValue('category', cat)} 
+                    className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-all ${watch('category') === cat ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-100 text-slate-400'}`}
+                  >
+                    {cat}
+                  </button>
                 ))}
               </div>
 
-              {/* BOUTON DE VALIDATION FIXÉ EN BAS DU TIROIR */}
               <div className="mt-8 pb-10"> 
                 <button 
                   type="submit" 

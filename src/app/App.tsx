@@ -42,7 +42,11 @@ export default function App() {
     const expenses = transactions.filter(t => t.type === 'expense' && (!t.isFixed || t.isCleared));
     const income = transactions.filter(t => t.type === 'income' && (!t.isFixed || t.isCleared));
     
-    const numBalance = Number(startingBalance.toString().replace(',', '.'));
+    // Conversion propre du solde (gestion virgule/point)
+    const numBalance = typeof startingBalance === 'string' 
+      ? parseFloat(startingBalance.replace(',', '.')) || 0 
+      : startingBalance;
+
     const totalExp = expenses.reduce((a, b) => a + Number(b.amount), 0);
     const totalInc = income.reduce((a, b) => a + Number(b.amount), 0);
     const currentBalance = numBalance + totalInc - totalExp;
@@ -51,13 +55,18 @@ export default function App() {
       .filter(t => t.isFixed && !t.isCleared && t.type === 'expense')
       .reduce((a, b) => a + Number(b.amount), 0);
 
-    // Stats des enveloppes pour l'onglet "Stats"
+    // Stats des enveloppes (pour l'onglet Stats)
     const envStats = envelopes.map(env => {
       const spent = transactions
         .filter(t => t.category === env.name && t.type === 'expense')
         .reduce((acc, t) => acc + Number(t.amount), 0);
       const percentage = env.amount > 0 ? Math.min((spent / env.amount) * 100, 100) : 0;
-      return { ...env, spent, remaining: Math.max(0, env.amount - spent), percentage };
+      return { 
+        ...env, 
+        spent, 
+        remaining: Math.max(0, env.amount - spent), 
+        percentage 
+      };
     });
 
     const remainingEnvelopes = envStats.reduce((acc, env) => acc + env.remaining, 0);
@@ -99,7 +108,7 @@ export default function App() {
     <div className="bg-white min-h-screen flex flex-col font-sans overflow-x-hidden">
       <main className="flex-1 overflow-y-auto px-6 pt-12 pb-40">
         
-        {/* DASHBOARD */}
+        {/* --- ONGLET DASHBOARD --- */}
         {activeTab === 'dashboard' && (
           <>
             <BalanceCard 
@@ -127,7 +136,11 @@ export default function App() {
                     {transactions.filter(t => t.isFixed).map(t => (
                       <div key={t.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-3 flex-1" onClick={() => { setEditingItem(t); setIsDrawerOpen(true); }}>
-                          <Checkbox checked={t.isCleared} onCheckedChange={() => handleSave({ ...t, isCleared: !t.isCleared })} onClick={(e) => e.stopPropagation()}/>
+                          <Checkbox 
+                            checked={t.isCleared} 
+                            onCheckedChange={() => handleSave({ ...t, isCleared: !t.isCleared })} 
+                            onClick={(e) => e.stopPropagation()}
+                          />
                           <span className={`text-sm ${t.isCleared ? 'line-through text-slate-300' : 'font-bold'}`}>{t.description}</span>
                         </div>
                         <span className="font-black text-sm">{t.amount}€</span>
@@ -143,12 +156,15 @@ export default function App() {
               <CategoryChart data={stats.chartData} />
             </div>
 
-            <h3 className="font-bold mb-4 italic uppercase text-[10px] tracking-widest text-slate-400">Flux variables</h3>
-            <TransactionList transactions={transactions.filter(t => !t.isFixed)} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} />
+            <h3 className="font-bold mb-4 italic uppercase text-[10px] tracking-widest text-slate-400">Flux récents</h3>
+            <TransactionList 
+              transactions={transactions.filter(t => !t.isFixed)} 
+              onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} 
+            />
           </>
         )}
 
-        {/* ANALYSES (STATS) */}
+        {/* --- ONGLET ANALYSES --- */}
         {activeTab === 'stats' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-4">
             <h2 className="text-3xl font-black italic tracking-tighter uppercase">Analyses</h2>
@@ -160,7 +176,9 @@ export default function App() {
                       <h4 className="font-black uppercase text-sm">{stat.name}</h4>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{stat.percentage.toFixed(0)}% consommé</p>
                     </div>
-                    <span className="font-black text-lg">{stat.spent.toFixed(0)}€ <span className="text-slate-300 text-xs">/ {stat.amount}€</span></span>
+                    <span className="font-black text-lg">
+                      {stat.spent.toFixed(0)}€ <span className="text-slate-300 text-xs">/ {stat.amount}€</span>
+                    </span>
                   </div>
                   <div className="h-4 w-full bg-white rounded-full overflow-hidden border border-slate-100">
                     <div 
@@ -168,16 +186,14 @@ export default function App() {
                       style={{ width: `${stat.percentage}%` }}
                     />
                   </div>
-                  <div className="flex justify-between mt-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Reste : {stat.remaining.toFixed(2)}€</p>
-                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mt-3">Reste : {stat.remaining.toFixed(2)}€</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* CONFIGURATION */}
+        {/* --- ONGLET CONFIGURATION --- */}
         {activeTab === 'settings' && (
           <div className="space-y-8 pb-20">
             <h2 className="text-3xl font-black italic tracking-tighter uppercase">Configuration</h2>
@@ -199,8 +215,10 @@ export default function App() {
 
             <div>
               <div className="flex justify-between items-center mb-4 px-2">
-                <h3 className="font-black italic uppercase text-sm">Catégories & Enveloppes</h3>
-                <button onClick={() => setEnvelopes([...envelopes, {id: uuidv4(), name: 'Nouvelle', amount: 0}])} className="text-blue-600"><PlusCircle size={24}/></button>
+                <h3 className="font-black italic uppercase text-sm">Catégories & Budgets</h3>
+                <button onClick={() => setEnvelopes([...envelopes, {id: uuidv4(), name: 'Nouveau', amount: 0}])} className="text-blue-600">
+                  <PlusCircle size={24}/>
+                </button>
               </div>
               <div className="space-y-3">
                 {envelopes.map((env) => (
@@ -216,16 +234,16 @@ export default function App() {
                       onChange={(e) => setEnvelopes(envelopes.map(x => x.id === env.id ? {...x, amount: Number(e.target.value)} : x))}
                       className="w-20 text-right font-black outline-none bg-slate-50 p-2 rounded-xl"
                     />
-                    <button onClick={() => setEnvelopes(envelopes.filter(x => x.id !== env.id))} className="text-red-400 ml-2"><Trash2 size={18}/></button>
+                    <button onClick={() => setEnvelopes(envelopes.filter(x => x.id !== env.id))} className="text-red-400 ml-2">
+                      <Trash2 size={18}/>
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
 
             <button 
-              onClick={() => { 
-                if (window.confirm("⚠️ Tout supprimer ?")) { localStorage.clear(); window.location.reload(); }
-              }} 
+              onClick={() => { if (window.confirm("⚠️ Tout supprimer ?")) { localStorage.clear(); window.location.reload(); } }} 
               className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold active:scale-95 transition-transform mt-10"
             >
               Réinitialiser toutes les données
@@ -234,13 +252,13 @@ export default function App() {
         )}
       </main>
 
-      {/* NAVIGATION BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-8 pt-4 pb-10 flex justify-between items-center z-50">
+      {/* --- BARRE DE NAVIGATION --- */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 pt-4 pb-10 flex justify-between items-center z-50">
         <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-300'}>
-          <Home size={28} strokeWidth={3} />
+          <Home size={28} strokeWidth={activeTab === 'dashboard' ? 3 : 2} />
         </button>
         <button onClick={() => setActiveTab('stats')} className={activeTab === 'stats' ? 'text-blue-600' : 'text-slate-300'}>
-          <PieChart size={28} strokeWidth={3} />
+          <PieChart size={28} strokeWidth={activeTab === 'stats' ? 3 : 2} />
         </button>
         <button 
           onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
@@ -248,9 +266,9 @@ export default function App() {
         >
           <Plus size={32} strokeWidth={3} />
         </button>
-        <button className="opacity-0 w-7" disabled />
+        <div className="w-8" /> {/* Espaceur */}
         <button onClick={() => setActiveTab('settings')} className={activeTab === 'settings' ? 'text-blue-600' : 'text-slate-300'}>
-          <Settings size={28} strokeWidth={3} />
+          <Settings size={28} strokeWidth={activeTab === 'settings' ? 3 : 2} />
         </button>
       </nav>
 
