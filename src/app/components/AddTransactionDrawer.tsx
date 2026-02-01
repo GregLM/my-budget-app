@@ -106,9 +106,14 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                 ))}
               </div>
 
-              <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all mt-4">
-                {initialData?.id ? 'Enregistrer' : 'Valider'}
-              </button>
+              <div className="mt-auto pt-6 pb-8"> 
+                <button 
+                  type="submit" 
+                  className="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all"
+                >
+                  {initialData?.id ? 'Enregistrer' : 'Valider'}
+                </button>
+              </div>
             </form>
           </div>
         </Drawer.Content>

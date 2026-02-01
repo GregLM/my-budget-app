@@ -2,7 +2,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* MODE CLAIR (Par défaut) */
+/* 1. ON DÉFINIT LES COULEURS POUR LE MODE CLAIR */
 :root {
   --background: #ffffff;
   --foreground: #030213;
@@ -12,7 +12,7 @@
   --border: rgba(0, 0, 0, 0.08);
 }
 
-/* MODE SOMBRE (Uniquement si la classe .dark est présente) */
+/* 2. ON REDÉFINIT TOUT POUR LE MODE SOMBRE */
 .dark {
   --background: #000000;
   --foreground: #ffffff;
@@ -34,7 +34,6 @@
 
 @layer base {
   body {
-    /* Suppression du bg-black forcé pour laisser les variables piloter */
     background-color: var(--background);
     color: var(--foreground);
     @apply transition-colors duration-300;
