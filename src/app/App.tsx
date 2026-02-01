@@ -115,7 +115,7 @@ export default function App() {
   };
 
   return (
-    <div className="bg-white dark:bg-black min-h-screen flex flex-col font-sans overflow-x-hidden transition-colors duration-300">
+    <div className="min-h-screen flex flex-col font-sans overflow-x-hidden">
       <main className="flex-1 overflow-y-auto px-6 pt-12 pb-40">
         
         {activeTab === 'dashboard' && (

@@ -2,17 +2,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* MODE CLAIR (Par défaut) */
 :root {
   --background: #ffffff;
   --foreground: #030213;
   --card: #ffffff;
   --muted: #f3f3f5;
   --muted-foreground: #717182;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(0, 0, 0, 0.08);
 }
 
+/* MODE SOMBRE (Uniquement si la classe .dark est présente) */
 .dark {
-  --background: #000000; /* Noir pur pour iPhone OLED */
+  --background: #000000;
   --foreground: #ffffff;
   --card: #11111e;
   --muted: #1e1e2e;
@@ -32,7 +34,10 @@
 
 @layer base {
   body {
-    @apply bg-background text-foreground transition-colors duration-300;
+    /* Suppression du bg-black forcé pour laisser les variables piloter */
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply transition-colors duration-300;
     overscroll-behavior-y: none;
   }
 }
