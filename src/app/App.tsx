@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Home, PieChart, Settings, Wallet, CheckCircle2, Circle, Trash2, PlusCircle } from 'lucide-react';
+import { Plus, Home, PieChart, Settings, Wallet, CheckCircle2, Circle, Trash2, PlusCircle, Target } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BalanceCard } from '@/app/components/BalanceCard';
@@ -98,6 +98,19 @@ export default function App() {
     handleSave({ ...t, isCleared: !t.isCleared });
   };
 
+  const envelopeStats = useMemo(() => {
+    return envelopes.map(env => {
+      const spent = transactions
+        .filter(t => t.category === env.name && t.type === 'expense')
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+      
+      const percentage = env.amount > 0 ? Math.min((spent / env.amount) * 100, 100) : 0;
+      const remaining = Math.max(0, env.amount - spent);
+
+      return { ...env, spent, remaining, percentage };
+    });
+  }, [transactions, envelopes]);
+
   return (
     <div className="bg-white min-h-screen flex flex-col font-sans overflow-x-hidden">
       <main className="flex-1 overflow-y-auto px-6 pt-12 pb-40">
@@ -149,102 +162,106 @@ export default function App() {
           </>
         )}
 
-        {activeTab === 'settings' && (
-          <div className="space-y-8 pb-20">
-            <h2 className="text-3xl font-black italic tracking-tighter uppercase">Configuration</h2>
+        {activeTab === 'stats' && (
+          <div className=\"space-y-8 animate-in fade-in duration-500\">
+            <h2 className=\"text-3xl font-black italic uppercase tracking-tighter\">Analyses</h2>
             
+            <div className=\"grid grid-cols-1 gap-6\">
+              {envelopeStats.map(stat => (
+                <div key={stat.id} className=\"bg-slate-50 p-6 rounded-[32px] border border-slate-100 shadow-sm\">
+                  <div className=\"flex justify-between items-start mb-4\">
+                    <div>
+                      <h4 className=\"font-black uppercase text-sm\">{stat.name}</h4>
+                      <p className=\"text-[10px] text-slate-400 font-bold uppercase tracking-widest\">Consommé à {stat.percentage.toFixed(0)}%</p>
+                    </div>
+                    <span className=\"font-black text-lg\">{stat.spent}€ <span className=\"text-slate-300 text-xs\">/ {stat.amount}€</span></span>
+                  </div>
+
+                  {/* BARRE DE PROGRESSION STYLE DONUT/PILL */}
+                  <div className=\"h-4 w-full bg-white rounded-full overflow-hidden border border-slate-100\">
+                    <div 
+                      className={`h-full transition-all duration-1000 ${stat.percentage > 90 ? 'bg-red-500' : 'bg-blue-600'}`}
+                      style={{ width: `${stat.percentage}%` }}
+                    />
+                  </div>
+                  
+                  <div className=\"flex justify-between mt-3\">
+                    <p className=\"text-[10px] font-bold text-slate-400 uppercase\">Reste : {stat.remaining.toFixed(2)}€</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* --- ONGLET CONFIGURATION --- */}
+        {activeTab === 'settings' && (
+          <div className=\"space-y-8\">
+            <h2 className=\"text-3xl font-black italic uppercase tracking-tighter\">Configuration</h2>
+            
+            {/* Gestion des Enveloppes (qui servent de Catégories) */}
             <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                  Solde de départ au 1er du mois
-                </label>
-                <input 
-                  type="text" 
-                  inputMode="decimal" 
-                  placeholder="0,00"
-                  // On gère l'affichage pour autoriser la virgule visuelle
-                  value={startingBalance === 0 ? '' : startingBalance.toString().replace('.', ',')} 
-                  onChange={(e) => {
-                    // 1. On récupère la valeur brute (ex: "10,5")
-                    const rawValue = e.target.value;
-                    
-                    // 2. On autorise uniquement chiffres, point et virgule via une Regex
-                    if (/^[0-9.,]*$/.test(rawValue)) {
-                      // 3. On convertit pour le stockage (virgule -> point)
-                      const normalizedValue = rawValue.replace(',', '.');
-                      
-                      // 4. On ne met à jour que si c'est un nombre valide ou vide
-                      if (normalizedValue === '' || !isNaN(Number(normalizedValue))) {
-                        setStartingBalance(normalizedValue === '' ? 0 : normalizedValue); 
-                      }
-                    }
-                  }}
-                  className="w-full p-5 rounded-2xl border-none font-black text-2xl shadow-sm focus:ring-2 ring-blue-500 outline-none" 
-                />
+              <div className=\"flex justify-between items-center mb-4\">
+                <h3 className=\"font-black italic uppercase text-sm\">Catégories & Budgets</h3>
+                <button 
+                  onClick={() => setEnvelopes([...envelopes, { id: uuidv4(), name: 'Nouveau', amount: 0 }])}
+                  className=\"text-blue-600\"
+                >
+                  <PlusCircle size={24} />
+                </button>
               </div>
-            <div>
-              <div className="flex justify-between items-center mb-4 px-2">
-                <h3 className="font-black italic uppercase text-sm">Enveloppes de dépenses</h3>
-                <button onClick={() => setEnvelopes([...envelopes, {id: uuidv4(), name: 'Nouvelle', amount: 0}])} className="text-blue-600"><PlusCircle size={24}/></button>
-              </div>
-              <div className="space-y-3">
-                {envelopes.map((env) => (
-                  <div key={env.id} className="flex items-center gap-3 p-4 bg-white rounded-3xl border border-slate-100 shadow-sm">
+              <div className=\"space-y-3\">
+                {envelopes.map(env => (
+                  <div key={env.id} className=\"flex items-center gap-3 p-4 bg-white rounded-3xl border border-slate-100 shadow-sm\">
                     <input 
-                      value={env.name} 
+                      value={env.name}
                       onChange={(e) => setEnvelopes(envelopes.map(x => x.id === env.id ? {...x, name: e.target.value} : x))}
-                      className="flex-1 font-bold text-sm outline-none bg-transparent"
+                      className=\"flex-1 font-bold text-sm outline-none\"
                     />
                     <input 
-                      type="number" 
-                      value={env.amount} 
+                      type=\"number\"
+                      value={env.amount}
                       onChange={(e) => setEnvelopes(envelopes.map(x => x.id === env.id ? {...x, amount: Number(e.target.value)} : x))}
-                      className="w-20 text-right font-black outline-none bg-slate-50 p-2 rounded-xl"
+                      className=\"w-20 text-right font-black outline-none bg-slate-50 p-2 rounded-xl\"
                     />
-                    <button onClick={() => setEnvelopes(envelopes.filter(x => x.id !== env.id))} className="text-red-400 ml-2"><Trash2 size={18}/></button>
+                    <button onClick={() => setEnvelopes(envelopes.filter(x => x.id !== env.id))} className=\"text-red-400\">
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
-            <button 
-              onClick={() => { 
-                if (window.confirm("⚠️ Attention : Cela va supprimer définitivement toutes vos transactions et réglages. Continuer ?")) {
-                  localStorage.clear(); 
-                  window.location.reload(); 
-                }
-              }} 
-              className="w-full p-4 bg-red-100 text-red-600 rounded-2xl font-bold active:scale-95 transition-transform"
-            >
-              Réinitialiser toutes les données
-            </button>
           </div>
         )}
       </main>
 
-      {/* BARRE NAVIGATION FIXÉE */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-10 pt-4 pb-10 flex justify-between items-center z-50">
+      {/* --- NAVIGATION MISE À JOUR --- */}
+      <nav className=\"fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 pt-4 pb-10 flex justify-between items-center z-50\">
         <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-300'}>
-          <Home size={28} strokeWidth={activeTab === 'dashboard' ? 3 : 2} />
+          <Home size={26} strokeWidth={3} />
         </button>
+        <button onClick={() => setActiveTab('stats')} className={activeTab === 'stats' ? 'text-blue-600' : 'text-slate-300'}>
+          <PieChart size={26} strokeWidth={3} />
+        </button>
+        
         <button 
           onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
-          className="bg-blue-600 text-white p-5 rounded-full -mt-14 shadow-2xl shadow-blue-400 active:scale-90 transition-transform border-8 border-white"
+          className=\"bg-blue-600 text-white p-4 rounded-full -mt-12 shadow-xl active:scale-95 transition-all border-8 border-white\"
         >
           <Plus size={32} strokeWidth={3} />
         </button>
+
+        <button className=\"text-slate-300 opacity-0\"><Target size={26} /></button> {/* Espaceur */}
+        
         <button onClick={() => setActiveTab('settings')} className={activeTab === 'settings' ? 'text-blue-600' : 'text-slate-300'}>
-          <Settings size={28} strokeWidth={activeTab === 'settings' ? 3 : 2} />
+          <Settings size={26} strokeWidth={3} />
         </button>
       </nav>
 
+      {/* Passer 'envelopes' au drawer pour qu'il les affiche en catégories */}
       <AddTransactionDrawer 
-        open={isDrawerOpen} 
-        onOpenChange={setIsDrawerOpen} 
-        onAdd={handleSave} 
-        initialData={editingItem}
-        onDelete={(id: string) => {
-          setTransactions(prev => prev.filter(t => t.id !== id));
-          setIsDrawerOpen(false);
-        }}
+        categories={envelopes.map(e => e.name)} 
+        /* ... autres props */ 
       />
     </div>
   );
