@@ -76,26 +76,26 @@ export default function App() {
     };
   }, [transactions, startingBalance, envelopes]);
 
-  const handleSave = (formData: any) => {
-    // On vérifie si l'item existe déjà (cas du pointage ou de la modification)
-    const isExisting = data.transactions.find(t => t.id === formData.id);
-  
-    if (isExisting) {
-      // MISE À JOUR : On remplace l'ancien par le nouveau
-      setData(d => ({
-        ...d,
-        transactions: d.transactions.map(t => t.id === formData.id ? { ...formData } : t)
-      }));
-    } else {
-      // CRÉATION : On ajoute une nouvelle entrée avec un ID unique
-      setData(d => ({
-        ...d,
-        transactions: [{ ...formData, id: uuidv4() }, ...d.transactions]
-      }));
-    }
+  const handleSave = (data: any) => {
+    setTransactions(prev => {
+      // Si l'id existe déjà, c'est une modification ou un pointage
+      const exists = prev.find(t => t.id === data.id);
+      
+      if (exists || data.id) {
+        return prev.map(t => t.id === data.id ? { ...data } : t);
+      } else {
+        // Sinon c'est une création
+        return [{ ...data, id: uuidv4() }, ...prev];
+      }
+    });
     
-    setIsDrawerOpen(false);
     setEditingItem(null);
+    setIsDrawerOpen(false);
+  };
+
+  // Pour le pointage rapide dans l'accordéon
+  const toggleCheck = (t: any) => {
+    handleSave({ ...t, isCleared: !t.isCleared });
   };
 
   return (
