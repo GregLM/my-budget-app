@@ -2,7 +2,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* 1. ON DÉFINIT LES COULEURS POUR LE MODE CLAIR */
+@theme {
+  /* On lie les variables CSS aux utilitaires Tailwind */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2.5rem;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #030213;
@@ -12,7 +24,6 @@
   --border: rgba(0, 0, 0, 0.08);
 }
 
-/* 2. ON REDÉFINIT TOUT POUR LE MODE SOMBRE */
 .dark {
   --background: #000000;
   --foreground: #ffffff;
@@ -23,17 +34,9 @@
   color-scheme: dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-}
-
 @layer base {
   body {
+    /* On force l'application des variables au démarrage */
     background-color: var(--background);
     color: var(--foreground);
     @apply transition-colors duration-300;
