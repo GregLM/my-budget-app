@@ -176,22 +176,23 @@ export default function App() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 z-50 px-4">
-        <div className="max-w-md mx-auto h-full flex items-center">
+      {/* NAV CENTRAGE ABSOLU - App.tsx */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 z-50">
+        <div className="max-w-md mx-auto h-full flex items-center relative">
           
-          {/* ZONE GAUCHE (33%) */}
-          <div className="flex-1 flex justify-center gap-8">
-            <button onClick={() => setActiveTab('dashboard')} className="p-2">
+          {/* 1. BOUTONS DE GAUCHE (Dashboard / Stats) */}
+          <div className="flex flex-1 justify-around px-4">
+            <button onClick={() => setActiveTab('dashboard')}>
               <Home size={24} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
-            <button onClick={() => setActiveTab('stats')} className="p-2">
+            <button onClick={() => setActiveTab('stats')}>
               <PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
           </div>
 
-          {/* ZONE CENTRALE (FIXE) : Point d'ancrage du + */}
-          <div className="relative w-20 flex justify-center">
-            <div className="absolute -top-10 flex items-center">
+          {/* 2. BLOC CENTRAL (Bouton +) - Centrage Mathématique */}
+          <div className="absolute inset-x-0 -top-10 flex justify-center pointer-events-none">
+            <div className="relative flex items-center pointer-events-auto">
               <button 
                 onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
                 className="bg-blue-600 text-white p-5 rounded-full shadow-[0_10px_25px_rgba(37,99,235,0.4)] border-8 border-background active:scale-90 transition-all z-20"
@@ -199,7 +200,7 @@ export default function App() {
                 <Plus size={32} strokeWidth={3} />
               </button>
               
-              {/* LE SIMULATEUR "JE PEUX ?" : Positionné à droite du + sans le décaler */}
+              {/* LE SIMULATEUR : Placé à droite du bouton bleu */}
               <button 
                 onClick={() => alert("Simulateur bientôt disponible !")} 
                 className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all z-10 -ml-3 mt-8"
@@ -209,9 +210,10 @@ export default function App() {
             </div>
           </div>
 
-          {/* ZONE DROITE (33%) */}
-          <div className="flex-1 flex justify-center">
-            <button onClick={() => setActiveTab('settings')} className="p-2">
+          {/* 3. BOUTONS DE DROITE (Settings + Spacer pour équilibrer) */}
+          <div className="flex flex-1 justify-center px-4">
+            <div className="w-1/2" /> {/* Espace vide pour pousser les settings à droite */}
+            <button onClick={() => setActiveTab('settings')}>
               <Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
           </div>
