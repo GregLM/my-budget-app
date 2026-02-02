@@ -37,22 +37,36 @@ export default function App() {
   const stats = useMemo(() => {
     const parse = (v: any) => parseFloat(v?.toString().replace(',', '.') || "0") || 0;
     const balInit = parse(startingBalance);
+    
+    // Transactions réelles impactant le solde (Pointées ou non-fixes)
     const exp = transactions.filter(t => t.type === 'expense' && (!t.isFixed || t.isCleared));
     const inc = transactions.filter(t => t.type === 'income' && (!t.isFixed || t.isCleared));
     const currentBal = balInit + inc.reduce((a, b) => a + parse(b.amount), 0) - exp.reduce((a, b) => a + parse(b.amount), 0);
+
+    // Charges fixes futures (Non pointées)
     const remFixed = transactions.filter(t => t.isFixed && !t.isCleared && t.type === 'expense').reduce((a, b) => a + parse(b.amount), 0);
 
+    // Analyse des enveloppes
     const envs = envelopes.map(e => {
       const isRev = e.name.toLowerCase().includes('revenu');
+      // On calcule ce qui est déjà passé dans cette catégorie
       const real = transactions.filter(t => t.category === e.name && (isRev ? t.type === 'income' : t.type === 'expense')).reduce((a, b) => a + parse(b.amount), 0);
       const target = parse(e.amount);
       return { ...e, real, rem: Math.max(0, target - real), isRev, target, pct: target > 0 ? (real / target) * 100 : 0 };
     });
 
+    // CALCUL DE L'ATTERRISSAGE PRÉVU (L'objectif de fin de mois)
+    const remExpEnvelopes = envs.filter(e => !e.isRev).reduce((a, b) => a + b.rem, 0);
+    const remIncEnvelopes = envs.filter(e => e.isRev).reduce((a, b) => a + b.rem, 0);
+
     return { 
-      balance: currentBal, forecastReal: currentBal - remFixed,
-      forecastTarget: currentBal - remFixed - envs.filter(e => !e.isRev).reduce((a, b) => a + b.rem, 0) + envs.filter(e => e.isRev).reduce((a, b) => a + b.rem, 0),
-      envs, chart: Object.entries(exp.reduce((acc: any, t) => { acc[t.category] = (acc[t.category] || 0) + parse(t.amount); return acc; }, {})).map(([name, value], i) => ({ name, value: Number(value), color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }))
+      balance: currentBal, 
+      forecastReal: currentBal - remFixed,
+      // FORMULE : Solde actuel - Fixes restants - Enveloppes de charges restantes + Enveloppes de revenus restants
+      forecastTarget: currentBal - remFixed - remExpEnvelopes + remIncEnvelopes,
+      envs, 
+      chart: Object.entries(exp.reduce((acc: any, t) => { acc[t.category] = (acc[t.category] || 0) + parse(t.amount); return acc; }, {}))
+        .map(([name, value], i) => ({ name, value: Number(value), color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }))
     };
   }, [transactions, startingBalance, envelopes]);
 
