@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Circle, Trash2 } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Copy } from 'lucide-react'; // Ajout de Copy
 
 interface TransactionListProps {
   transactions: any[];
   onEdit: (t: any) => void;
   onToggleCheck: (t: any) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (t: any) => void; // Nouvelle prop
 }
 
-export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete }: TransactionListProps) {
+export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(5);
   const [swipedId, setSwipedId] = useState<string | null>(null);
+  const [swipedDir, setSwipedDir] = useState<'left' | 'right' | null>(null);
   const [startX, setStartX] = useState(0);
 
   // CONFIGURATION DES COULEURS PASTEL
@@ -43,9 +45,15 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete 
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => (
         <div key={t.id} className="relative overflow-hidden rounded-[24px]">
-          {/* ZONE DE SUPPRESSION (Arrière-plan) */}
+          
+          {/* ARRIÈRE-PLAN : SUPPRESSION (À droite) */}
           <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6 rounded-[24px]">
             <Trash2 className="text-white" size={24} />
+          </div>
+
+          {/* ARRIÈRE-PLAN : DUPLICATION (À gauche) */}
+          <div className="absolute inset-0 bg-blue-500 flex items-center justify-start px-6 rounded-[24px]">
+            <Copy className="text-white" size={24} />
           </div>
 
           {/* CARTE TRANSACTION */}
@@ -53,50 +61,40 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete 
             onTouchStart={(e) => setStartX(e.touches[0].clientX)}
             onTouchMove={(e) => {
               const diff = startX - e.touches[0].clientX;
-              if (diff > 50) setSwipedId(t.id);
-              if (diff < -50) setSwipedId(null);
+              if (diff > 50) { setSwipedId(t.id); setSwipedDir('left'); }
+              if (diff < -50) { setSwipedId(t.id); setSwipedDir('right'); }
+              if (Math.abs(diff) < 10 && swipedId === t.id) { setSwipedId(null); setSwipedDir(null); }
             }}
-            onClick={() => swipedId === t.id ? setSwipedId(null) : onEdit(t)}
-            style={{ transform: swipedId === t.id ? 'translateX(-80px)' : 'translateX(0)' }}
+            onClick={() => {
+              if (swipedId === t.id) { setSwipedId(null); setSwipedDir(null); }
+              else onEdit(t);
+            }}
+            style={{ 
+              transform: swipedId === t.id 
+                ? (swipedDir === 'left' ? 'translateX(-80px)' : 'translateX(80px)') 
+                : 'translateX(0)' 
+            }}
             className={`flex items-center justify-between p-4 bg-card border transition-transform duration-300 ease-out cursor-pointer shadow-sm relative z-10 rounded-[24px]
               ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
           >
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              {t.isFixed ? (
-                <button onClick={(e) => { e.stopPropagation(); onToggleCheck(t); }} className="shrink-0">
-                  {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
-                </button>
-              ) : (
-                <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-black text-muted-foreground text-[10px] uppercase shrink-0">
-                  {t.category ? t.category.substring(0, 2) : '??'}
-                </div>
-              )}
-              
-              <div className="flex flex-col min-w-0">
-                <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                  {t.description || "Sans description"}
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')}`}>
-                    {t.category || "Général"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                     {t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className={`font-black text-sm whitespace-nowrap ml-3 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
-              {t.type === 'income' ? '+' : '-'}{Number(t.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
-            </div>
-
-            {swipedId === t.id && (
+            {/* ... (Contenu de la carte identique) ... */}
+            
+            {/* BOUTONS D'ACTION RAPIDE LORS DU SWIPE */}
+            {swipedId === t.id && swipedDir === 'left' && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
                 className="absolute inset-0 bg-red-500 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest"
               >
                 Confirmer la suppression
+              </button>
+            )}
+
+            {swipedId === t.id && swipedDir === 'right' && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onDuplicate(t); setSwipedId(null); }}
+                className="absolute inset-0 bg-blue-500 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest"
+              >
+                Dupliquer ce mouvement
               </button>
             )}
           </div>

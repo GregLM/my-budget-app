@@ -86,6 +86,17 @@ export default function App() {
   const handleDelete = (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
+
+  const handleDuplicate = (t: any) => {
+    const duplicatedAction = {
+      ...t,
+      id: undefined, // On retire l'ID pour que handleSave en génère un nouveau
+      isCleared: false, // Un nouveau flux n'est pas encore pointé
+      date: new Date().toISOString().split('T')[0] // On propose la date du jour par défaut
+    };
+    setEditingItem(duplicatedAction);
+    setIsDrawerOpen(true);
+  };
   
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
@@ -104,7 +115,11 @@ export default function App() {
               <Wallet className="text-blue-500 opacity-40" size={32} />
             </div>
             <div className="bg-card p-6 rounded-[32px] border border-border"><CategoryChart data={stats.chart} /></div>
-            <TransactionList transactions={transactions} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} />
+            <TransactionList transactions={transactions} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} 
+            onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} 
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
+            />
           </div>
         )}
 
