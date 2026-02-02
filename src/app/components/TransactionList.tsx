@@ -11,9 +11,9 @@ interface TransactionListProps {
 
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(5);
-  const [swipedId, setSwipedId] = useState<string | null>(null);
-  const [swipedDir, setSwipedDir] = useState<'left' | 'right' | null>(null);
-  const [startX, setStartX] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchCurrent, setTouchCurrent] = useState(0);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const getPastelTag = (category: string) => {
     const name = category.toLowerCase();
@@ -25,7 +25,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
       'transport': 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
       'loisir': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
       'epargne': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-      'impots': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+      'impot': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
       'santé': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
       'assurance': 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
       'enfant': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
@@ -35,114 +35,101 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     return match ? pastels[match] : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
   };
 
+  const onTouchStart = (e: React.TouchEvent, id: string) => {
+    setTouchStart(e.targetTouches[0].clientX);
+    setActiveId(id);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchCurrent(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = (t: any) => {
+    const distance = touchCurrent - touchStart;
+    const threshold = window.innerWidth * 0.4; // 40% de l'écran pour déclencher
+
+    if (distance > threshold) {
+      onDuplicate(t);
+    } else if (distance < -threshold) {
+      onDelete(t.id);
+    }
+
+    setTouchStart(0);
+    setTouchCurrent(0);
+    setActiveId(null);
+  };
+
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const visible = sorted.slice(0, displayCount);
 
-  // GESTION DU SWIPE AMÉLIORÉE
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartX(e.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent, id: string) => {
-    const diff = startX - e.changedTouches[0].clientX;
-    if (diff > 60) { // Swipe Gauche (Suppression)
-      setSwipedId(id);
-      setSwipedDir('left');
-    } else if (diff < -60) { // Swipe Droite (Duplication)
-      setSwipedId(id);
-      setSwipedDir('right');
-    } else { // Click ou geste trop court
-      setSwipedId(null);
-      setSwipedDir(null);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-3 pb-10">
-      {visible.map((t) => (
-        <div key={t.id} className="relative overflow-hidden rounded-[24px] touch-pan-y">
-          
-          {/* FOND : ACTIONS RÉVÉLÉES */}
-          <div className="absolute inset-0 flex justify-between items-center rounded-[24px]">
-            <div className="bg-blue-600 h-full w-20 flex items-center justify-center text-white">
-              <Copy size={22} />
-            </div>
-            <div className="bg-red-600 h-full w-20 flex items-center justify-center text-white">
-              <Trash2 size={22} />
-            </div>
-          </div>
+      {visible.map((t) => {
+        const distance = activeId === t.id ? touchCurrent - touchStart : 0;
+        const isDuplicating = distance > 0;
+        const isDeleting = distance < 0;
+        const absDistance = Math.abs(distance);
+        const opacity = Math.min(absDistance / 100, 1);
 
-          {/* CARTE TRANSACTION (AU DESSUS) */}
-          <div 
-            onTouchStart={handleTouchStart}
-            onTouchEnd={(e) => handleTouchEnd(e, t.id)}
-            onClick={() => {
-              if (swipedId === t.id) {
-                setSwipedId(null);
-                setSwipedDir(null);
-              } else {
-                onEdit(t);
-              }
-            }}
-            style={{ 
-              transform: swipedId === t.id 
-                ? (swipedDir === 'left' ? 'translateX(-80px)' : 'translateX(80px)') 
-                : 'translateX(0)' 
-            }}
-            className={`flex items-center justify-between p-4 bg-card border transition-transform duration-200 ease-out cursor-pointer shadow-sm relative z-10 rounded-[24px]
-              ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
-          >
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              {t.isFixed ? (
-                <button onClick={(e) => { e.stopPropagation(); onToggleCheck(t); }} className="shrink-0 focus:outline-none">
-                  {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
-                </button>
-              ) : (
-                <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-black text-muted-foreground text-[10px] uppercase shrink-0">
-                  {t.category ? t.category.substring(0, 2) : '??'}
-                </div>
-              )}
-              
-              <div className="flex flex-col min-w-0">
-                <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                  {t.description || "Sans description"}
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')}`}>
-                    {t.category || "Général"}
+        return (
+          <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900">
+            {/* Background Actions */}
+            <div 
+              className={`absolute inset-0 flex items-center px-6 transition-colors ${
+                isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''
+              }`}
+              style={{ opacity }}
+            >
+              {isDuplicating && <Copy className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
+              {isDeleting && <Trash2 className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
+            </div>
+
+            {/* Card Content */}
+            <div 
+              onTouchStart={(e) => onTouchStart(e, t.id)}
+              onTouchMove={onTouchMove}
+              onTouchEnd={() => onTouchEnd(t)}
+              onClick={() => onEdit(t)}
+              style={{ 
+                transform: `translateX(${distance}px)`,
+                transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+              }}
+              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px]
+                ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
+            >
+              <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
+                {t.isFixed ? (
+                  <div className="shrink-0">
+                    {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
+                  </div>
+                ) : (
+                  <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-black text-muted-foreground text-[10px] uppercase shrink-0">
+                    {t.category ? t.category.substring(0, 2) : '??'}
+                  </div>
+                )}
+                
+                <div className="flex flex-col min-w-0">
+                  <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                    {t.description || "Sans description"}
                   </span>
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                     {t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')}`}>
+                      {t.category || "Général"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                       {t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              <div className={`font-black text-sm whitespace-nowrap ml-3 pointer-events-none ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
+                {t.type === 'income' ? '+' : '-'}{Number(t.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+              </div>
             </div>
-
-            <div className={`font-black text-sm whitespace-nowrap ml-3 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
-              {t.type === 'income' ? '+' : '-'}{Number(t.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
-            </div>
-
-            {/* OVERLAY DE CONFIRMATION / ACTION */}
-            {swipedId === t.id && swipedDir === 'left' && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); onDelete(t.id); setSwipedId(null); }}
-                className="absolute inset-0 bg-red-600 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest rounded-[24px]"
-              >
-                Confirmer la suppression
-              </button>
-            )}
-
-            {swipedId === t.id && swipedDir === 'right' && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); onDuplicate(t); setSwipedId(null); }}
-                className="absolute inset-0 bg-blue-600 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest rounded-[24px]"
-              >
-                Dupliquer le mouvement
-              </button>
-            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {transactions.length > displayCount && (
         <button 

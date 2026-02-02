@@ -84,15 +84,16 @@ export default function App() {
   };
 
   const handleDelete = (id: string) => {
+    // Optionnel : ajouter un retour haptique ou une petite vibration ici
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
   const handleDuplicate = (t: any) => {
     const duplicatedAction = {
       ...t,
-      id: undefined, // On retire l'ID pour que handleSave en génère un nouveau
-      isCleared: false, // Un nouveau flux n'est pas encore pointé
-      date: new Date().toISOString().split('T')[0] // On propose la date du jour par défaut
+      id: undefined, // IMPORTANT : On vide l'ID pour forcer la création
+      isCleared: false,
+      date: new Date().toISOString().split('T')[0] // Date du jour par défaut
     };
     setEditingItem(duplicatedAction);
     setIsDrawerOpen(true);
