@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Home, PieChart, Settings, Wallet, Trash2, PlusCircle, Moon, Sun } from 'lucide-react';
+import { Plus, Home, PieChart, Settings, Wallet, Trash2, PlusCircle, Moon, Sun, Target, Hourglass } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { BalanceCard } from '@/app/components/BalanceCard';
 import { CategoryChart } from '@/app/components/CategoryChart';
@@ -13,6 +13,7 @@ export default function App() {
   const [isDark, setIsDark] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [startingBalance, setStartingBalance] = useState<string>("1000");
+  const [alertThreshold, setAlertThreshold] = useState<number>(100);
   const [envelopes, setEnvelopes] = useState<any[]>([
     { id: '1', name: 'Emprunt', amount: "1484.84" },
     { id: '2', name: 'Alim.', amount: "600" },
@@ -25,10 +26,8 @@ export default function App() {
     { id: '9', name: 'Santé', amount: "0" },
     { id: '10', name: 'Assurance', amount: "167.48" },
     { id: '11', name: 'Enfant', amount: "1400" },
-    { id: '12', name: 'Revenus', amount: "1097.83" },
-    { id: '13', name: 'Divers', amount: "0" },
+    { id: '12', name: 'Revenus', amount: "1097.83" }
   ]);
-
 
   useEffect(() => {
     const saved = localStorage.getItem('eco_budget_final');
@@ -38,30 +37,26 @@ export default function App() {
       setStartingBalance(p.startingBalance || "1000");
       setEnvelopes(p.envelopes || []);
       setIsDark(p.isDark || false);
+      setAlertThreshold(p.alertThreshold || 100);
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('eco_budget_final', JSON.stringify({ transactions, startingBalance, envelopes, isDark }));
+    localStorage.setItem('eco_budget_final', JSON.stringify({ transactions, startingBalance, envelopes, isDark, alertThreshold }));
     document.documentElement.classList.toggle('dark', isDark);
-  }, [transactions, startingBalance, envelopes, isDark]);
+  }, [transactions, startingBalance, envelopes, isDark, alertThreshold]);
 
-  const [alertThreshold, setAlertThreshold] = useState<number>(100);
   const stats = useMemo(() => {
-    // Fonction de nettoyage ultra-robuste pour iPhone (gère espaces, virgules, etc.)
     const parse = (v: any) => parseFloat(v?.toString().replace(/\s/g, '').replace(',', '.') || "0") || 0;
     const balInit = parse(startingBalance);
     
-    // 1. SOLDE RÉEL (Ce qui est déjà passé en banque)
     const expPointes = transactions.filter(t => t.type === 'expense' && (!t.isFixed || t.isCleared));
     const incPointes = transactions.filter(t => t.type === 'income' && (!t.isFixed || t.isCleared));
     const currentBal = balInit + incPointes.reduce((a, b) => a + parse(b.amount), 0) - expPointes.reduce((a, b) => a + parse(b.amount), 0);
   
-    // 2. FLUX FIXES À VENIR (Non pointés)
     const remFixedExp = transactions.filter(t => t.isFixed && !t.isCleared && t.type === 'expense').reduce((a, b) => a + parse(b.amount), 0);
     const remFixedInc = transactions.filter(t => t.isFixed && !t.isCleared && t.type === 'income').reduce((a, b) => a + parse(b.amount), 0);
   
-    // 3. ENVELOPPES (Reste à dépenser / Reste à percevoir)
     const envs = envelopes.map(e => {
       const isRev = e.name.toLowerCase().includes('revenu') || (e.type === 'income');
       const actual = transactions.filter(t => t.category === e.name && (isRev ? t.type === 'income' : t.type === 'expense')).reduce((a, b) => a + parse(b.amount), 0);
@@ -72,15 +67,15 @@ export default function App() {
     const remExpBudget = envs.filter(e => !e.isRev).reduce((a, b) => a + b.rem, 0);
     const remIncBudget = envs.filter(e => e.isRev).reduce((a, b) => a + b.rem, 0);
 
-    // Mouvements récurrents non pointés
+    const forecastTarget = (currentBal + remFixedInc - remFixedExp) - remExpBudget + remIncBudget;
     const upcomingTransactions = transactions
-    .filter(t => t.isFixed && !t.isCleared)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .filter(t => t.isFixed && !t.isCleared)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     return { 
       balance: currentBal,
       forecastReal: currentBal + remFixedInc - remFixedExp,
-      forecastTarget: (currentBal + remFixedInc - remFixedExp) - remExpBudget + remIncBudget,
+      forecastTarget,
       envs,
       income: incPointes.reduce((a, b) => a + parse(b.amount), 0),
       expenses: expPointes.reduce((a, b) => a + parse(b.amount), 0),
@@ -89,8 +84,7 @@ export default function App() {
         return acc; 
       }, {})).map(([name, value], i) => ({ 
         name, value: Number(value), color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] 
-      }))
-      .sort((a, b) => b.value - a.value),
+      })).sort((a, b) => b.value - a.value),
       upcomingTransactions,
       isAlert: forecastTarget < alertThreshold
     };
@@ -99,24 +93,16 @@ export default function App() {
   const handleSave = (d: any) => {
     setTransactions(prev => {
       const newD = { ...d, id: d.id || uuidv4() };
-      return prev.find(t => t.id === newD.id) ? prev.map(t => t.id === newD.id ? newD : t) : [newD, ...prev];
+      const exists = prev.find(t => t.id === newD.id);
+      return exists ? prev.map(t => t.id === newD.id ? newD : t) : [newD, ...prev];
     });
     setIsDrawerOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    // Optionnel : ajouter un retour haptique ou une petite vibration ici
-    setTransactions(prev => prev.filter(t => t.id !== id));
-  };
+  const handleDelete = (id: string) => setTransactions(prev => prev.filter(t => t.id !== id));
 
   const handleDuplicate = (t: any) => {
-    const duplicatedAction = {
-      ...t,
-      id: undefined, // IMPORTANT : On vide l'ID pour forcer la création
-      isCleared: false,
-      date: new Date().toISOString().split('T')[0] // Date du jour par défaut
-    };
-    setEditingItem(duplicatedAction);
+    setEditingItem({ ...t, id: undefined, isCleared: false, date: new Date().toISOString().split('T')[0] });
     setIsDrawerOpen(true);
   };
   
@@ -125,41 +111,28 @@ export default function App() {
       <main className="flex-1 overflow-y-auto px-6 pt-12 pb-32">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <BalanceCard 
-              balance={stats.balance} 
-              forecast={stats.forecastTarget} 
-              income={stats.income} 
-              expenses={stats.expenses} 
-              backgroundImage="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000" 
-            />
+            <BalanceCard balance={stats.balance} forecast={stats.forecastTarget} income={stats.income} expenses={stats.expenses} isAlert={stats.isAlert} backgroundImage="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000" />
+            
             <div className="bg-muted p-5 rounded-3xl flex justify-between items-center border border-border">
-              <div className="space-y-1"><p className="text-muted-foreground text-[10px] font-black uppercase">Atterrissage Réel</p><p className="text-2xl font-black">{stats.forecastReal.toFixed(2)} €</p></div>
+              <div className="space-y-1"><p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Atterrissage Réel</p><p className="text-2xl font-black">{stats.forecastReal.toFixed(2)} €</p></div>
               <Wallet className="text-blue-500 opacity-40" size={32} />
             </div>
-            <div className="bg-card p-6 rounded-[32px] border border-border"><CategoryChart data={stats.chart} /></div>
+
+            <div className="bg-card p-6 rounded-[32px] border border-border shadow-sm"><CategoryChart data={stats.chart} /></div>
+
             {stats.upcomingTransactions.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">
-                Mouvements à venir ({stats.upcomingTransactions.length})
-              </h3>
-              <TransactionList 
-                transactions={stats.upcomingTransactions} 
-                onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }}
-                onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}
-                onDelete={handleDelete}
-                onDuplicate={handleDuplicate}
-              />
-              <div className="h-px bg-border my-8 w-1/2 mx-auto" />
-            </div>
-          )}
-            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">
-              Derniers flux
-            </h3>
-            <TransactionList transactions={transactions} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} 
-            onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} 
-            onDelete={handleDelete}
-            onDuplicate={handleDuplicate}
-            />
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4 px-2">
+                  <Hourglass size={14} className="text-blue-500" />
+                  <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Mouvements à venir ({stats.upcomingTransactions.length})</h3>
+                </div>
+                <TransactionList transactions={stats.upcomingTransactions} onEdit={setEditingItem} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} onDuplicate={handleDuplicate} />
+                <div className="h-px bg-border my-8 w-1/2 mx-auto" />
+              </div>
+            )}
+
+            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2 tracking-widest">Derniers flux</h3>
+            <TransactionList transactions={transactions.filter(t => !t.isFixed || t.isCleared)} onEdit={setEditingItem} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} onDuplicate={handleDuplicate} />
           </div>
         )}
 
@@ -177,7 +150,7 @@ export default function App() {
 
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center bg-card p-5 rounded-[32px] border border-border">
+            <div className="flex justify-between items-center bg-card p-5 rounded-[32px] border border-border shadow-sm">
               <span className="font-bold">Mode Sombre</span>
               <button onClick={() => setIsDark(!isDark)} className={`w-14 h-8 rounded-full relative transition-colors ${isDark ? 'bg-blue-600' : 'bg-slate-300'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDark ? 'translate-x-6' : ''}`} /></button>
             </div>
@@ -187,12 +160,7 @@ export default function App() {
             </div>
             <div className="p-6 bg-card rounded-[32px] border border-border space-y-2 shadow-sm">
               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Seuil d'alerte (Atterrissage)</label>
-              <input 
-                type="number" 
-                value={alertThreshold} 
-                onChange={e => setAlertThreshold(Number(e.target.value))} 
-                className="w-full bg-muted p-4 rounded-2xl font-black text-2xl outline-none" 
-              />
+              <input type="number" value={alertThreshold} onChange={e => setAlertThreshold(Number(e.target.value))} className="w-full bg-muted p-4 rounded-2xl font-black text-2xl outline-none" />
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center px-2"><h3 className="font-black uppercase text-xs text-muted-foreground">Enveloppes</h3><button onClick={() => setEnvelopes([...envelopes, {id: uuidv4(), name: 'Nouveau', amount: "0"}])}><PlusCircle className="text-blue-600" size={24}/></button></div>
@@ -209,28 +177,18 @@ export default function App() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border px-8 pt-4 pb-10 flex justify-between items-center z-50">
-        <button onClick={() => setActiveTab('dashboard')}><Home className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} size={28}/></button>
-        <button onClick={() => setActiveTab('stats')}><PieChart className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} size={28}/></button>
-        <div className="flex items-center gap-3 -mt-14">
-        <button 
-          onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
-          className="bg-blue-600 text-white p-5 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all"
-        >
-          <Plus size={32} strokeWidth={3} />
-        </button>
+        <button onClick={() => setActiveTab('dashboard')}><Home size={28} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
+        <button onClick={() => setActiveTab('stats')}><PieChart size={28} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
         
-        {/* BOUTON SIMULATEUR "JE PEUX ?" */}
-        <button 
-          onClick={() => alert("Simulateur bientôt dispo !")} // On codera la logique après
-          className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all mt-4"
-        >
-          <Target size={20} />
-        </button>
-      </div>
+        {/* BOUTON CENTRAL + "JE PEUX ?" RECENTRÉ */}
+        <div className="relative flex items-center justify-center -mt-14 w-20">
+          <button onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} className="bg-blue-600 text-white p-5 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all z-10"><Plus size={32} strokeWidth={3} /></button>
+          <button onClick={() => alert("Simulateur bientôt dispo !")} className="absolute left-[70%] mt-8 bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all"><Target size={20} /></button>
+        </div>
 
-      <div className="w-4" /> {/* Spacer pour l'équilibre */}
-      <button onClick={() => setActiveTab('settings')}><Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
-    </nav>
+        <button onClick={() => setActiveTab('settings')}><Settings size={28} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
+      </nav>
+
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />
     </div>
   );
