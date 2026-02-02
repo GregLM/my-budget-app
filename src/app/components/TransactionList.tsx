@@ -29,6 +29,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete 
       'assurance': 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
       'enfant': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
       'revenu': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+      'divers': 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
     };
 
     const match = Object.keys(pastels).find(key => name.includes(key));
