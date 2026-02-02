@@ -35,37 +35,38 @@ export default function App() {
   }, [transactions, startingBalance, envelopes, isDark]);
 
   const stats = useMemo(() => {
-    // Nettoyage strict pour éviter que les espaces ou virgules de l'iPhone ne cassent le calcul
+    // Fonction de nettoyage ultra-robuste pour iPhone (gère espaces, virgules, etc.)
     const parse = (v: any) => parseFloat(v?.toString().replace(/\s/g, '').replace(',', '.') || "0") || 0;
-    
     const balInit = parse(startingBalance);
-    const exp = transactions.filter(t => t.type === 'expense' && (!t.isFixed || t.isCleared));
-    const inc = transactions.filter(t => t.type === 'income' && (!t.isFixed || t.isCleared));
     
-    // Solde au moment T (réel)
-    const currentBal = balInit + inc.reduce((a, b) => a + parse(b.amount), 0) - exp.reduce((a, b) => a + parse(b.amount), 0);
+    // 1. SOLDE RÉEL (Ce qui est déjà passé en banque)
+    const expPointes = transactions.filter(t => t.type === 'expense' && (!t.isFixed || t.isCleared));
+    const incPointes = transactions.filter(t => t.type === 'income' && (!t.isFixed || t.isCleared));
+    const currentBal = balInit + incPointes.reduce((a, b) => a + parse(b.amount), 0) - expPointes.reduce((a, b) => a + parse(b.amount), 0);
   
-    // Charges fixes à venir
-    const remFixed = transactions.filter(t => t.isFixed && !t.isCleared && t.type === 'expense').reduce((a, b) => a + parse(b.amount), 0);
+    // 2. FLUX FIXES À VENIR (Non pointés)
+    const remFixedExp = transactions.filter(t => t.isFixed && !t.isCleared && t.type === 'expense').reduce((a, b) => a + parse(b.amount), 0);
+    const remFixedInc = transactions.filter(t => t.isFixed && !t.isCleared && t.type === 'income').reduce((a, b) => a + parse(b.amount), 0);
   
-    // Calcul des enveloppes
+    // 3. ENVELOPPES (Reste à dépenser / Reste à percevoir)
     const envs = envelopes.map(e => {
-      const isRev = e.type === 'income' || e.name.toLowerCase().includes('revenu');
-      const real = transactions.filter(t => t.category === e.name && (isRev ? t.type === 'income' : t.type === 'expense')).reduce((a, b) => a + parse(b.amount), 0);
+      const isRev = e.name.toLowerCase().includes('revenu') || (e.type === 'income');
+      const actual = transactions.filter(t => t.category === e.name && (isRev ? t.type === 'income' : t.type === 'expense')).reduce((a, b) => a + parse(b.amount), 0);
       const target = parse(e.amount);
-      return { ...e, real, rem: Math.max(0, target - real), isRev, target };
+      return { ...e, real: actual, rem: Math.max(0, target - actual), isRev, target, pct: target > 0 ? (actual / target) * 100 : 0 };
     });
   
-    const remExpEnvelopes = envs.filter(e => !e.isRev).reduce((a, b) => a + b.rem, 0);
-    const remIncEnvelopes = envs.filter(e => e.isRev).reduce((a, b) => a + b.rem, 0);
+    const remExpBudget = envs.filter(e => !e.isRev).reduce((a, b) => a + b.rem, 0);
+    const remIncBudget = envs.filter(e => e.isRev).reduce((a, b) => a + b.rem, 0);
   
     return { 
-      balance: currentBal, 
-      forecastReal: currentBal - remFixed,
-      // La formule qui donne 834,74€
-      forecastTarget: currentBal - remFixed - remExpEnvelopes + remIncEnvelopes,
+      balance: currentBal,
+      // ATTERRISSAGE RÉEL : Solde + Revenus fixes à venir - Charges fixes à venir
+      forecastReal: currentBal + remFixedInc - remFixedExp,
+      // ATTERRISSAGE PRÉVU : Atterrissage Réel - Reste des enveloppes charges + Reste des enveloppes revenus
+      forecastTarget: (currentBal + remFixedInc - remFixedExp) - remExpBudget + remIncBudget,
       envs,
-      chart: Object.entries(exp.reduce((acc: any, t) => { 
+      chart: Object.entries(expPointes.reduce((acc: any, t) => { 
         acc[t.category] = (acc[t.category] || 0) + parse(t.amount); 
         return acc; 
       }, {})).map(([name, value], i) => ({ 
