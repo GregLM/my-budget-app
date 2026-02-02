@@ -61,11 +61,11 @@ export default function App() {
   
     return { 
       balance: currentBal,
-      // ATTERRISSAGE RÉEL : Solde + Revenus fixes à venir - Charges fixes à venir
       forecastReal: currentBal + remFixedInc - remFixedExp,
-      // ATTERRISSAGE PRÉVU : Atterrissage Réel - Reste des enveloppes charges + Reste des enveloppes revenus
       forecastTarget: (currentBal + remFixedInc - remFixedExp) - remExpBudget + remIncBudget,
       envs,
+      income: incPointes.reduce((a, b) => a + parse(b.amount), 0),
+      expenses: expPointes.reduce((a, b) => a + parse(b.amount), 0),
       chart: Object.entries(expPointes.reduce((acc: any, t) => { 
         acc[t.category] = (acc[t.category] || 0) + parse(t.amount); 
         return acc; 

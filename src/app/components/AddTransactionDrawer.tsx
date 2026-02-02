@@ -19,8 +19,9 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" />
-        <Drawer.Content className="bg-background flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[96vh] border-t border-border shadow-2xl">
-          <div className="p-5 flex-1 overflow-y-auto">
+        <Drawer.Content className="bg-background flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[96dvh] border-t border-border shadow-2xl"
+          onPointerDownOutside={(e) => e.preventDefault()}>
+          <div className="p-5 flex-1 overflow-y-auto overscroll-contain">
             <div className="mx-auto w-12 h-1.5 rounded-full bg-muted mb-8" />
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
               {/* Sélecteur de type compact */}
