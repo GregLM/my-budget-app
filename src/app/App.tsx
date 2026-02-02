@@ -176,17 +176,42 @@ export default function App() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border px-8 pt-4 pb-10 flex justify-between items-center z-50">
-        <button onClick={() => setActiveTab('dashboard')}><Home size={28} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
-        <button onClick={() => setActiveTab('stats')}><PieChart size={28} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
-        
-        {/* BOUTON CENTRAL + "JE PEUX ?" RECENTRÉ */}
-        <div className="relative flex items-center justify-center -mt-14 w-20">
-          <button onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} className="bg-blue-600 text-white p-5 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all z-10"><Plus size={32} strokeWidth={3} /></button>
-          <button onClick={() => alert("Simulateur bientôt dispo !")} className="absolute left-[70%] mt-8 bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all"><Target size={20} /></button>
+      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-24 px-6 flex items-center justify-between z-50">
+        {/* Icônes de gauche */}
+        <div className="flex justify-around w-1/3 pr-4">
+          <button onClick={() => setActiveTab('dashboard')}>
+            <Home size={26} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
+          </button>
+          <button onClick={() => setActiveTab('stats')}>
+            <PieChart size={26} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
+          </button>
         </div>
 
-        <button onClick={() => setActiveTab('settings')}><Settings size={28} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
+        {/* BLOC CENTRAL : Positionné de manière absolue pour un centrage parfait */}
+        <div className="absolute left-1/2 -translate-x-1/2 -top-8 flex items-end gap-2">
+          <button 
+            onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
+            className="bg-blue-600 text-white p-6 rounded-full shadow-[0_15px_30px_rgba(37,99,235,0.4)] border-8 border-background active:scale-90 transition-all"
+          >
+            <Plus size={32} strokeWidth={3} />
+          </button>
+          
+          {/* BOUTON "JE PEUX ?" : Placé à droite du + sans le gêner */}
+          <button 
+            onClick={() => alert("Simulateur bientôt disponible !")} 
+            className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all mb-2"
+          >
+            <Target size={20} />
+          </button>
+        </div>
+
+        {/* Icônes de droite */}
+        <div className="flex justify-around w-1/3 pl-4">
+          <div className="w-6" /> {/* Espace pour équilibrer le Target */}
+          <button onClick={() => setActiveTab('settings')}>
+            <Settings size={26} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
+          </button>
+        </div>
       </nav>
 
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />
