@@ -14,9 +14,21 @@ export default function App() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [startingBalance, setStartingBalance] = useState<string>("1000");
   const [envelopes, setEnvelopes] = useState<any[]>([
-    { id: '1', name: 'Revenu', amount: "0" },
-    { id: '2', name: 'Alim.', amount: "500" }
+    { id: '1', name: 'Emprunt', amount: "1484.84" },
+    { id: '2', name: 'Alim.', amount: "600" },
+    { id: '3', name: 'Abo. et Tel', amount: "300" },
+    { id: '4', name: 'Energie', amount: "300" },
+    { id: '5', name: 'Transport', amount: "120" },
+    { id: '6', name: 'Loisirs', amount: "200" },
+    { id: '7', name: 'Epargne', amount: "400" },
+    { id: '8', name: 'Impots et taxes', amount: "80" },
+    { id: '9', name: 'Santé', amount: "0" },
+    { id: '10', name: 'Assurance', amount: "167.48" },
+    { id: '11', name: 'Enfant', amount: "1400" },
+    { id: '12', name: 'Revenus', amount: "1097.83" },
+    { id: '13', name: 'Divers', amount: "0" },
   ]);
+
 
   useEffect(() => {
     const saved = localStorage.getItem('eco_budget_final');
@@ -34,6 +46,7 @@ export default function App() {
     document.documentElement.classList.toggle('dark', isDark);
   }, [transactions, startingBalance, envelopes, isDark]);
 
+  const [alertThreshold, setAlertThreshold] = useState<number>(100);
   const stats = useMemo(() => {
     // Fonction de nettoyage ultra-robuste pour iPhone (gère espaces, virgules, etc.)
     const parse = (v: any) => parseFloat(v?.toString().replace(/\s/g, '').replace(',', '.') || "0") || 0;
@@ -58,7 +71,12 @@ export default function App() {
   
     const remExpBudget = envs.filter(e => !e.isRev).reduce((a, b) => a + b.rem, 0);
     const remIncBudget = envs.filter(e => e.isRev).reduce((a, b) => a + b.rem, 0);
-  
+
+    // Mouvements récurrents non pointés
+    const upcomingTransactions = transactions
+    .filter(t => t.isFixed && !t.isCleared)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
     return { 
       balance: currentBal,
       forecastReal: currentBal + remFixedInc - remFixedExp,
@@ -72,8 +90,11 @@ export default function App() {
       }, {})).map(([name, value], i) => ({ 
         name, value: Number(value), color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] 
       }))
+      .sort((a, b) => b.value - a.value),
+      upcomingTransactions,
+      isAlert: forecastTarget < alertThreshold
     };
-  }, [transactions, startingBalance, envelopes]);
+  }, [transactions, startingBalance, envelopes, alertThreshold]);
 
   const handleSave = (d: any) => {
     setTransactions(prev => {
@@ -116,6 +137,24 @@ export default function App() {
               <Wallet className="text-blue-500 opacity-40" size={32} />
             </div>
             <div className="bg-card p-6 rounded-[32px] border border-border"><CategoryChart data={stats.chart} /></div>
+            {stats.upcomingTransactions.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">
+                Mouvements à venir ({stats.upcomingTransactions.length})
+              </h3>
+              <TransactionList 
+                transactions={stats.upcomingTransactions} 
+                onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }}
+                onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+              />
+              <div className="h-px bg-border my-8 w-1/2 mx-auto" />
+            </div>
+          )}
+            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">
+              Derniers flux
+            </h3>
             <TransactionList transactions={transactions} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} 
             onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} 
             onDelete={handleDelete}
@@ -146,6 +185,15 @@ export default function App() {
               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Solde de départ</label>
               <input type="text" inputMode="decimal" value={startingBalance.replace('.', ',')} onChange={e => setStartingBalance(e.target.value.replace(',', '.'))} className="w-full bg-muted p-4 rounded-2xl font-black text-2xl outline-none" />
             </div>
+            <div className="p-6 bg-card rounded-[32px] border border-border space-y-2 shadow-sm">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Seuil d'alerte (Atterrissage)</label>
+              <input 
+                type="number" 
+                value={alertThreshold} 
+                onChange={e => setAlertThreshold(Number(e.target.value))} 
+                className="w-full bg-muted p-4 rounded-2xl font-black text-2xl outline-none" 
+              />
+            </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center px-2"><h3 className="font-black uppercase text-xs text-muted-foreground">Enveloppes</h3><button onClick={() => setEnvelopes([...envelopes, {id: uuidv4(), name: 'Nouveau', amount: "0"}])}><PlusCircle className="text-blue-600" size={24}/></button></div>
               {envelopes.map(env => (
@@ -163,9 +211,26 @@ export default function App() {
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border px-8 pt-4 pb-10 flex justify-between items-center z-50">
         <button onClick={() => setActiveTab('dashboard')}><Home className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} size={28}/></button>
         <button onClick={() => setActiveTab('stats')}><PieChart className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} size={28}/></button>
-        <button onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} className="bg-blue-600 text-white p-4 h-14 w-14 rounded-full -mt-12 shadow-xl border-8 border-background"><Plus size={32} strokeWidth={3}/></button>
-        <div className="w-8" /><button onClick={() => setActiveTab('settings')}><Settings className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} size={28}/></button>
-      </nav>
+        <div className="flex items-center gap-3 -mt-14">
+        <button 
+          onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
+          className="bg-blue-600 text-white p-5 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all"
+        >
+          <Plus size={32} strokeWidth={3} />
+        </button>
+        
+        {/* BOUTON SIMULATEUR "JE PEUX ?" */}
+        <button 
+          onClick={() => alert("Simulateur bientôt dispo !")} // On codera la logique après
+          className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all mt-4"
+        >
+          <Target size={20} />
+        </button>
+      </div>
+
+      <div className="w-4" /> {/* Spacer pour l'équilibre */}
+      <button onClick={() => setActiveTab('settings')}><Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
+    </nav>
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />
     </div>
   );
