@@ -88,7 +88,13 @@ export default function App() {
       <main className="flex-1 overflow-y-auto px-6 pt-12 pb-32">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <BalanceCard balance={stats.balance} forecast={stats.forecastTarget} income={0} expenses={0} backgroundImage="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1000" />
+            <BalanceCard 
+              balance={stats.balance} 
+              forecast={stats.forecastTarget} 
+              income={stats.income} 
+              expenses={stats.expenses} 
+              backgroundImage="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000" 
+            />
             <div className="bg-muted p-5 rounded-3xl flex justify-between items-center border border-border">
               <div className="space-y-1"><p className="text-muted-foreground text-[10px] font-black uppercase">Atterrissage Réel</p><p className="text-2xl font-black">{stats.forecastReal.toFixed(2)} €</p></div>
               <Wallet className="text-blue-500 opacity-40" size={32} />
