@@ -59,39 +59,39 @@ export default function App() {
         .reduce((acc, t) => acc + Number(t.amount), 0);
       
       const remaining = Math.max(0, env.amount - actual);
-      return { 
-        ...env, 
-        actual, 
-        remaining, 
-        isRevenue, 
-        percentage: env.amount > 0 ? Math.min((actual / env.amount) * 100, 100) : 0 
-      };
+      return { ...env, actual, remaining, isRevenue, percentage: env.amount > 0 ? (actual / env.amount) * 100 : 0 };
     });
   
-    // ICI : On sépare bien les deux types pour la formule finale
+    // Séparation pour le calcul final
     const remExpenses = envStats.filter(e => !e.isRevenue).reduce((a, b) => a + b.remaining, 0);
     const remRevenues = envStats.filter(e => e.isRevenue).reduce((a, b) => a + b.remaining, 0);
   
     return { 
       balance: currentBalance,
       forecastReal: currentBalance - remainingFixed,
-      // LA FORMULE CORRIGÉE : Solde - Fixes - Reste à dépenser + Reste à percevoir
+      // FORMULE CORRIGÉE : Solde - Fixes - Reste à dépenser + Reste à percevoir
       forecastTarget: currentBalance - remainingFixed - remExpenses + remRevenues,
       income: totalInc,
       expenses: totalExp,
-      chartData: Object.entries(
-        expenses.reduce((acc: any, t) => {
-          acc[t.category] = (acc[t.category] || 0) + Number(t.amount);
-          return acc;
-        }, {})
-      ).map(([name, value], i) => ({ 
-        name, 
-        value: Number(value), 
-        color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] 
-      })),
+      chartData: [], // Garde ton calcul de chartData ici
       envStats
     };
   }, [transactions, startingBalance, envelopes]);
+  
+  // 2. CHERCHE L'INPUT DES ENVELOPPES DANS L'ONGLET CONFIG (vers la fin du fichier)
+  // Remplace le bloc <input type="number" ... /> par celui-ci :
+  <input 
+    type="text" 
+    inputMode="decimal"
+    value={env.amount.toString().replace('.', ',')} 
+    onChange={(e) => {
+      const val = e.target.value.replace(',', '.');
+      if (/^[0-9.]*$/.test(val)) {
+        setEnvelopes(envelopes.map(x => x.id === env.id ? {...x, amount: val === '' ? 0 : parseFloat(val)} : x));
+      }
+    }}
+    className="w-24 text-right font-black outline-none bg-muted p-2 rounded-xl dark:text-white"
+  />
 
   const handleSave = (data: any) => {
     const cleanData = { ...data, amount: Number(data.amount), id: data.id || uuidv4() };
