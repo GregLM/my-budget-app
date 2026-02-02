@@ -83,6 +83,10 @@ export default function App() {
     setIsDrawerOpen(false);
   };
 
+  const handleDelete = (id: string) => {
+    setTransactions(prev => prev.filter(t => t.id !== id));
+  };
+  
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
       <main className="flex-1 overflow-y-auto px-6 pt-12 pb-32">
@@ -100,7 +104,7 @@ export default function App() {
               <Wallet className="text-blue-500 opacity-40" size={32} />
             </div>
             <div className="bg-card p-6 rounded-[32px] border border-border"><CategoryChart data={stats.chart} /></div>
-            <TransactionList transactions={transactions} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} />
+            <TransactionList transactions={transactions} onEdit={(t) => { setEditingItem(t); setIsDrawerOpen(true); }} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} />
           </div>
         )}
 
