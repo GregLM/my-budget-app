@@ -72,11 +72,18 @@ export default function App() {
       .reduce((a, b) => a + Number(b.amount), 0);
 
     const envStats = envelopes.map(env => {
-      const spent = transactions
-        .filter(t => t.category === env.name && t.type === 'expense')
+      const isRevenueEnv = env.name.toLowerCase().includes('revenu');
+      
+      // Si c'est un revenu, on regarde les transactions de type 'income'
+      const actual = transactions
+        .filter(t => t.category === env.name && (isRevenueEnv ? t.type === 'income' : t.type === 'expense'))
         .reduce((acc, t) => acc + Number(t.amount), 0);
-      const percentage = env.amount > 0 ? Math.min((spent / env.amount) * 100, 100) : 0;
-      return { ...env, spent, remaining: Math.max(0, env.amount - spent), percentage };
+      
+      const remaining = isRevenueEnv 
+        ? Math.max(0, env.amount - actual) // Ce qu'il reste à recevoir
+        : Math.max(0, env.amount - actual); // Ce qu'il reste à dépenser
+
+      return { ...env, actual, remaining, isRevenueEnv };
     });
 
     const remainingEnvelopes = envStats.reduce((acc, env) => acc + env.remaining, 0);
@@ -97,7 +104,7 @@ export default function App() {
       income: totalInc, 
       expenses: totalExp, 
       forecastReal: currentBalance - remainingFixed,
-      forecastPessimistic: currentBalance - remainingFixed - remainingEnvelopes,
+      forecastPessimistic: currentBalance - remainingFixed - remainingEnvelopes + (envStats.filter(e => e.isRevenueEnv).reduce((a, b) => a + b.remaining, 0)),
       chartData,
       envStats
     };
