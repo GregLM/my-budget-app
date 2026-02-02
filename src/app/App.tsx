@@ -35,38 +35,42 @@ export default function App() {
   }, [transactions, startingBalance, envelopes, isDark]);
 
   const stats = useMemo(() => {
-    const parse = (v: any) => parseFloat(v?.toString().replace(',', '.') || "0") || 0;
-    const balInit = parse(startingBalance);
+    // Nettoyage strict pour éviter que les espaces ou virgules de l'iPhone ne cassent le calcul
+    const parse = (v: any) => parseFloat(v?.toString().replace(/\s/g, '').replace(',', '.') || "0") || 0;
     
-    // Transactions réelles impactant le solde (Pointées ou non-fixes)
+    const balInit = parse(startingBalance);
     const exp = transactions.filter(t => t.type === 'expense' && (!t.isFixed || t.isCleared));
     const inc = transactions.filter(t => t.type === 'income' && (!t.isFixed || t.isCleared));
+    
+    // Solde au moment T (réel)
     const currentBal = balInit + inc.reduce((a, b) => a + parse(b.amount), 0) - exp.reduce((a, b) => a + parse(b.amount), 0);
-
-    // Charges fixes futures (Non pointées)
+  
+    // Charges fixes à venir
     const remFixed = transactions.filter(t => t.isFixed && !t.isCleared && t.type === 'expense').reduce((a, b) => a + parse(b.amount), 0);
-
-    // Analyse des enveloppes
+  
+    // Calcul des enveloppes
     const envs = envelopes.map(e => {
-      const isRev = e.name.toLowerCase().includes('revenu');
-      // On calcule ce qui est déjà passé dans cette catégorie
+      const isRev = e.type === 'income' || e.name.toLowerCase().includes('revenu');
       const real = transactions.filter(t => t.category === e.name && (isRev ? t.type === 'income' : t.type === 'expense')).reduce((a, b) => a + parse(b.amount), 0);
       const target = parse(e.amount);
-      return { ...e, real, rem: Math.max(0, target - real), isRev, target, pct: target > 0 ? (real / target) * 100 : 0 };
+      return { ...e, real, rem: Math.max(0, target - real), isRev, target };
     });
-
-    // CALCUL DE L'ATTERRISSAGE PRÉVU (L'objectif de fin de mois)
+  
     const remExpEnvelopes = envs.filter(e => !e.isRev).reduce((a, b) => a + b.rem, 0);
     const remIncEnvelopes = envs.filter(e => e.isRev).reduce((a, b) => a + b.rem, 0);
-
+  
     return { 
       balance: currentBal, 
       forecastReal: currentBal - remFixed,
-      // FORMULE : Solde actuel - Fixes restants - Enveloppes de charges restantes + Enveloppes de revenus restants
+      // La formule qui donne 834,74€
       forecastTarget: currentBal - remFixed - remExpEnvelopes + remIncEnvelopes,
-      envs, 
-      chart: Object.entries(exp.reduce((acc: any, t) => { acc[t.category] = (acc[t.category] || 0) + parse(t.amount); return acc; }, {}))
-        .map(([name, value], i) => ({ name, value: Number(value), color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }))
+      envs,
+      chart: Object.entries(exp.reduce((acc: any, t) => { 
+        acc[t.category] = (acc[t.category] || 0) + parse(t.amount); 
+        return acc; 
+      }, {})).map(([name, value], i) => ({ 
+        name, value: Number(value), color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] 
+      }))
     };
   }, [transactions, startingBalance, envelopes]);
 
