@@ -176,41 +176,46 @@ export default function App() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-24 px-6 flex items-center justify-between z-50">
-        {/* Icônes de gauche */}
-        <div className="flex justify-around w-1/3 pr-4">
-          <button onClick={() => setActiveTab('dashboard')}>
-            <Home size={26} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
-          </button>
-          <button onClick={() => setActiveTab('stats')}>
-            <PieChart size={26} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
-          </button>
-        </div>
-
-        {/* BLOC CENTRAL : Positionné de manière absolue pour un centrage parfait */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-8 flex items-end gap-2">
-          <button 
-            onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
-            className="bg-blue-600 text-white p-6 rounded-full shadow-[0_15px_30px_rgba(37,99,235,0.4)] border-8 border-background active:scale-90 transition-all"
-          >
-            <Plus size={32} strokeWidth={3} />
-          </button>
+      {/* REMPLACE TOUTE TA NAV PAR CELLE-CI DANS APP.TSX */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 px-4 z-50">
+        <div className="max-w-md mx-auto h-full grid grid-cols-3 items-center">
           
-          {/* BOUTON "JE PEUX ?" : Placé à droite du + sans le gêner */}
-          <button 
-            onClick={() => alert("Simulateur bientôt disponible !")} 
-            className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all mb-2"
-          >
-            <Target size={20} />
-          </button>
-        </div>
+          {/* GAUCHE : HOME & STATS */}
+          <div className="flex justify-around items-center">
+            <button onClick={() => setActiveTab('dashboard')}>
+              <Home size={24} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
+            </button>
+            <button onClick={() => setActiveTab('stats')}>
+              <PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
+            </button>
+          </div>
 
-        {/* Icônes de droite */}
-        <div className="flex justify-around w-1/3 pl-4">
-          <div className="w-6" /> {/* Espace pour équilibrer le Target */}
-          <button onClick={() => setActiveTab('settings')}>
-            <Settings size={26} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
-          </button>
+          {/* CENTRE : BOUTON + ET TARGET (SIMULATEUR) */}
+          <div className="relative flex justify-center">
+            <div className="absolute -top-12 flex items-center">
+              <button 
+                onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
+                className="bg-blue-600 text-white p-5 rounded-full shadow-[0_10px_25px_rgba(37,99,235,0.4)] border-8 border-background active:scale-90 transition-all z-20"
+              >
+                <Plus size={32} strokeWidth={3} />
+              </button>
+              
+              {/* LE SIMULATEUR : Placé de manière relative au bouton + */}
+              <button 
+                onClick={() => alert("Simulateur bientôt disponible !")} 
+                className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all -ml-4 mt-8 z-10"
+              >
+                <Target size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* DROITE : SETTINGS */}
+          <div className="flex justify-end pr-4">
+            <button onClick={() => setActiveTab('settings')}>
+              <Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
+            </button>
+          </div>
         </div>
       </nav>
 
