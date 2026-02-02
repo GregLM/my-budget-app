@@ -178,8 +178,7 @@ export default function App() {
 
       {/* NAV CENTRAGE ABSOLU - App.tsx */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 z-50">
-        <div className="max-w-md mx-auto h-full flex relative">
-          
+        <div className="max-w-md mx-auto h-full flex relative">  
           {/* ZONE GAUCHE (50% de l'écran) */}
           <div className="w-1/2 flex justify-around items-center pr-10">
             <button onClick={() => setActiveTab('dashboard')} className="p-2">
@@ -189,7 +188,6 @@ export default function App() {
               <PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
           </div>
-
           {/* BLOC CENTRAL : Positionné au centre exact */}
           <div className="absolute left-1/2 -translate-x-1/2 -top-10 flex items-center">
             <div className="relative flex items-center">
