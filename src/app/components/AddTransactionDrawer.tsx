@@ -32,11 +32,11 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" />
-        <Drawer.Content className="bg-card flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[75vh] border-t border-border">
+        <Drawer.Content className="bg-card flex flex-col rounded-t-[40px] fixed bottom-0 left-0 right-0 z-50 outline-none max-w-md mx-auto h-[96vh] border-t border-border shadow-2xl">
           <div className="p-5 flex-1 overflow-y-auto">
-            <div className="mx-auto w-12 h-1 rounded-full bg-muted mb-6" />
+            <div className="mx-auto w-12 h-1.5 rounded-full bg-muted mb-8" />
             
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
               <div className="flex bg-muted p-1 rounded-xl h-10">
                 <button type="button" onClick={() => setValue('type', 'expense')} className={`flex-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${watch('type') === 'expense' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>Dépense</button>
                 <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${watch('type') === 'income' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>Revenu</button>
@@ -67,10 +67,11 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                   </button>
                 ))}
               </div>
-
-              <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all mt-4">
+              <div className="mt-4 pb-10"> 
+              <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-3xl font-black text-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all">
                 Valider le mouvement
               </button>
+            </div>
             </form>
           </div>
         </Drawer.Content>

@@ -41,20 +41,17 @@ export default function App() {
   const stats = useMemo(() => {
     const numBalance = parseFloat((startingBalance || "0").toString().replace(',', '.')) || 0;
     
-    // Transactions réelles (déjà pointées ou non-fixes)
     const expenses = transactions.filter(t => t.type === 'expense' && (!t.isFixed || t.isCleared));
     const incomes = transactions.filter(t => t.type === 'income' && (!t.isFixed || t.isCleared));
     
     const totalExp = expenses.reduce((a, b) => a + Number(b.amount), 0);
     const totalInc = incomes.reduce((a, b) => a + Number(b.amount), 0);
     const currentBalance = numBalance + totalInc - totalExp;
-
-    // Charges fixes non encore prélevées
+  
     const remainingFixed = transactions
       .filter(t => t.isFixed && !t.isCleared && t.type === 'expense')
       .reduce((a, b) => a + Number(b.amount), 0);
-
-    // Calcul des enveloppes
+  
     const envStats = envelopes.map(env => {
       const isRevenue = env.name.toLowerCase().includes('revenu');
       const actual = transactions
@@ -70,28 +67,28 @@ export default function App() {
         percentage: env.amount > 0 ? Math.min((actual / env.amount) * 100, 100) : 0 
       };
     });
-
+  
+    // ICI : On sépare bien les deux types pour la formule finale
     const remExpenses = envStats.filter(e => !e.isRevenue).reduce((a, b) => a + b.remaining, 0);
     const remRevenues = envStats.filter(e => e.isRevenue).reduce((a, b) => a + b.remaining, 0);
-
-    const chartData = Object.entries(
-      expenses.reduce((acc: any, t) => {
-        acc[t.category] = (acc[t.category] || 0) + Number(t.amount);
-        return acc;
-      }, {})
-    ).map(([name, value], i) => ({ 
-      name, 
-      value: Number(value), 
-      color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] 
-    }));
-
+  
     return { 
       balance: currentBalance,
-      forecastReal: currentBalance - remainingFixed, // Ce qu'il y a vraiment sur le compte après les prélèvements prévus
-      forecastTarget: currentBalance - remainingFixed - remExpenses + remRevenues, // L'objectif de fin de mois
+      forecastReal: currentBalance - remainingFixed,
+      // LA FORMULE CORRIGÉE : Solde - Fixes - Reste à dépenser + Reste à percevoir
+      forecastTarget: currentBalance - remainingFixed - remExpenses + remRevenues,
       income: totalInc,
       expenses: totalExp,
-      chartData,
+      chartData: Object.entries(
+        expenses.reduce((acc: any, t) => {
+          acc[t.category] = (acc[t.category] || 0) + Number(t.amount);
+          return acc;
+        }, {})
+      ).map(([name, value], i) => ({ 
+        name, 
+        value: Number(value), 
+        color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] 
+      })),
       envStats
     };
   }, [transactions, startingBalance, envelopes]);
