@@ -131,7 +131,7 @@ export default function App() {
               </div>
             )}
 
-            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2 tracking-widest">Derniers flux</h3>
+            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">Derniers flux</h3>
             <TransactionList transactions={transactions.filter(t => !t.isFixed || t.isCleared)} onEdit={setEditingItem} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} onDuplicate={handleDuplicate} />
           </div>
         )}
@@ -178,21 +178,21 @@ export default function App() {
 
       {/* NAV CENTRAGE ABSOLU - App.tsx */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 z-50">
-        <div className="max-w-md mx-auto h-full flex items-center relative">
+        <div className="max-w-md mx-auto h-full flex relative">
           
-          {/* 1. BOUTONS DE GAUCHE (Dashboard / Stats) */}
-          <div className="flex flex-1 justify-around px-4">
-            <button onClick={() => setActiveTab('dashboard')}>
+          {/* ZONE GAUCHE (50% de l'écran) */}
+          <div className="w-1/2 flex justify-around items-center pr-10">
+            <button onClick={() => setActiveTab('dashboard')} className="p-2">
               <Home size={24} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
-            <button onClick={() => setActiveTab('stats')}>
+            <button onClick={() => setActiveTab('stats')} className="p-2">
               <PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
           </div>
 
-          {/* 2. BLOC CENTRAL (Bouton +) - Centrage Mathématique */}
-          <div className="absolute inset-x-0 -top-10 flex justify-center pointer-events-none">
-            <div className="relative flex items-center pointer-events-auto">
+          {/* BLOC CENTRAL : Positionné au centre exact */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-10 flex items-center">
+            <div className="relative flex items-center">
               <button 
                 onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
                 className="bg-blue-600 text-white p-5 rounded-full shadow-[0_10px_25px_rgba(37,99,235,0.4)] border-8 border-background active:scale-90 transition-all z-20"
@@ -200,7 +200,7 @@ export default function App() {
                 <Plus size={32} strokeWidth={3} />
               </button>
               
-              {/* LE SIMULATEUR : Placé à droite du bouton bleu */}
+              {/* LE SIMULATEUR "JE PEUX ?" */}
               <button 
                 onClick={() => alert("Simulateur bientôt disponible !")} 
                 className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all z-10 -ml-3 mt-8"
@@ -210,10 +210,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* 3. BOUTONS DE DROITE (Settings + Spacer pour équilibrer) */}
-          <div className="flex flex-1 justify-center px-4">
-            <div className="w-1/2" /> {/* Espace vide pour pousser les settings à droite */}
-            <button onClick={() => setActiveTab('settings')}>
+          {/* ZONE DROITE (50% de l'écran) */}
+          <div className="w-1/2 flex justify-end items-center pl-10 pr-6">
+            <button onClick={() => setActiveTab('settings')} className="p-2">
               <Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
           </div>
