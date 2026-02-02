@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Circle, Trash2, Copy } from 'lucide-react'; // Ajout de Copy
+import { CheckCircle2, Circle, Trash2, Copy } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: any[];
   onEdit: (t: any) => void;
   onToggleCheck: (t: any) => void;
   onDelete: (id: string) => void;
-  onDuplicate: (t: any) => void; // Nouvelle prop
+  onDuplicate: (t: any) => void;
 }
 
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate }: TransactionListProps) {
@@ -15,7 +15,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   const [swipedDir, setSwipedDir] = useState<'left' | 'right' | null>(null);
   const [startX, setStartX] = useState(0);
 
-  // CONFIGURATION DES COULEURS PASTEL
   const getPastelTag = (category: string) => {
     const name = category.toLowerCase();
     const pastels: Record<string, string> = {
@@ -31,9 +30,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
       'assurance': 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
       'enfant': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
       'revenu': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-      'divers': 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
     };
-
     const match = Object.keys(pastels).find(key => name.includes(key));
     return match ? pastels[match] : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
   };
@@ -41,49 +38,95 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const visible = sorted.slice(0, displayCount);
 
+  // GESTION DU SWIPE AMÉLIORÉE
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent, id: string) => {
+    const diff = startX - e.changedTouches[0].clientX;
+    if (diff > 60) { // Swipe Gauche (Suppression)
+      setSwipedId(id);
+      setSwipedDir('left');
+    } else if (diff < -60) { // Swipe Droite (Duplication)
+      setSwipedId(id);
+      setSwipedDir('right');
+    } else { // Click ou geste trop court
+      setSwipedId(null);
+      setSwipedDir(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => (
-        <div key={t.id} className="relative overflow-hidden rounded-[24px]">
+        <div key={t.id} className="relative overflow-hidden rounded-[24px] touch-pan-y">
           
-          {/* ARRIÈRE-PLAN : SUPPRESSION (À droite) */}
-          <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6 rounded-[24px]">
-            <Trash2 className="text-white" size={24} />
+          {/* FOND : ACTIONS RÉVÉLÉES */}
+          <div className="absolute inset-0 flex justify-between items-center rounded-[24px]">
+            <div className="bg-blue-600 h-full w-20 flex items-center justify-center text-white">
+              <Copy size={22} />
+            </div>
+            <div className="bg-red-600 h-full w-20 flex items-center justify-center text-white">
+              <Trash2 size={22} />
+            </div>
           </div>
 
-          {/* ARRIÈRE-PLAN : DUPLICATION (À gauche) */}
-          <div className="absolute inset-0 bg-blue-500 flex items-center justify-start px-6 rounded-[24px]">
-            <Copy className="text-white" size={24} />
-          </div>
-
-          {/* CARTE TRANSACTION */}
+          {/* CARTE TRANSACTION (AU DESSUS) */}
           <div 
-            onTouchStart={(e) => setStartX(e.touches[0].clientX)}
-            onTouchMove={(e) => {
-              const diff = startX - e.touches[0].clientX;
-              if (diff > 50) { setSwipedId(t.id); setSwipedDir('left'); }
-              if (diff < -50) { setSwipedId(t.id); setSwipedDir('right'); }
-              if (Math.abs(diff) < 10 && swipedId === t.id) { setSwipedId(null); setSwipedDir(null); }
-            }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={(e) => handleTouchEnd(e, t.id)}
             onClick={() => {
-              if (swipedId === t.id) { setSwipedId(null); setSwipedDir(null); }
-              else onEdit(t);
+              if (swipedId === t.id) {
+                setSwipedId(null);
+                setSwipedDir(null);
+              } else {
+                onEdit(t);
+              }
             }}
             style={{ 
               transform: swipedId === t.id 
                 ? (swipedDir === 'left' ? 'translateX(-80px)' : 'translateX(80px)') 
                 : 'translateX(0)' 
             }}
-            className={`flex items-center justify-between p-4 bg-card border transition-transform duration-300 ease-out cursor-pointer shadow-sm relative z-10 rounded-[24px]
+            className={`flex items-center justify-between p-4 bg-card border transition-transform duration-200 ease-out cursor-pointer shadow-sm relative z-10 rounded-[24px]
               ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
           >
-            {/* ... (Contenu de la carte identique) ... */}
-            
-            {/* BOUTONS D'ACTION RAPIDE LORS DU SWIPE */}
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              {t.isFixed ? (
+                <button onClick={(e) => { e.stopPropagation(); onToggleCheck(t); }} className="shrink-0 focus:outline-none">
+                  {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
+                </button>
+              ) : (
+                <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-black text-muted-foreground text-[10px] uppercase shrink-0">
+                  {t.category ? t.category.substring(0, 2) : '??'}
+                </div>
+              )}
+              
+              <div className="flex flex-col min-w-0">
+                <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                  {t.description || "Sans description"}
+                </span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')}`}>
+                    {t.category || "Général"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                     {t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className={`font-black text-sm whitespace-nowrap ml-3 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
+              {t.type === 'income' ? '+' : '-'}{Number(t.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+            </div>
+
+            {/* OVERLAY DE CONFIRMATION / ACTION */}
             {swipedId === t.id && swipedDir === 'left' && (
               <button 
-                onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                className="absolute inset-0 bg-red-500 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest"
+                onClick={(e) => { e.stopPropagation(); onDelete(t.id); setSwipedId(null); }}
+                className="absolute inset-0 bg-red-600 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest rounded-[24px]"
               >
                 Confirmer la suppression
               </button>
@@ -92,9 +135,9 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
             {swipedId === t.id && swipedDir === 'right' && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onDuplicate(t); setSwipedId(null); }}
-                className="absolute inset-0 bg-blue-500 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest"
+                className="absolute inset-0 bg-blue-600 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest rounded-[24px]"
               >
-                Dupliquer ce mouvement
+                Dupliquer le mouvement
               </button>
             )}
           </div>
