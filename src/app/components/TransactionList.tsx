@@ -8,59 +8,54 @@ interface TransactionListProps {
   onDelete: (id: string) => void;
 }
 
-// Mapping des couleurs pastel par catégorie
-const getCategoryStyle = (cat: string) => {
-  const c = cat.toLowerCase();
-  if (c.includes('alim')) return 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
-  if (c.includes('loisir') || c.includes('sort')) return 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400';
-  if (c.includes('revenu') || c.includes('salair')) return 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400';
-  if (c.includes('transp') || c.includes('auto')) return 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400';
-  if (c.includes('loyer') || c.includes('logem')) return 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400';
-  if (c.includes('santé')) return 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400';
-  return 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
-};
-
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete }: TransactionListProps) {
-  const [displayCount, setDisplayCount] = useState(5); // On limite à 5 par défaut
+  const [displayCount, setDisplayCount] = useState(5);
   const [swipedId, setSwipedId] = useState<string | null>(null);
-  const [touchStart, setTouchStart] = useState(0);
+  const [startX, setStartX] = useState(0);
 
-  if (!transactions || transactions.length === 0) {
-    return (
-      <div className="text-center py-12 bg-muted/50 rounded-[32px] border border-dashed border-border">
-        <p className="text-muted-foreground font-medium italic text-sm">Aucun mouvement</p>
-      </div>
-    );
-  }
+  // CONFIGURATION DES COULEURS PASTEL
+  const getPastelTag = (category: string) => {
+    const name = category.toLowerCase();
+    const pastels: Record<string, string> = {
+      'emprunt': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+      'alim': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      'abo': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+      'energie': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      'transport': 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+      'loisir': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+      'epargne': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      'impots': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+      'santé': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+      'assurance': 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+      'enfant': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+      'revenu': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    };
+
+    const match = Object.keys(pastels).find(key => name.includes(key));
+    return match ? pastels[match] : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+  };
 
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const visible = sorted.slice(0, displayCount);
-
-  // Gestion du Swipe
-  const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
-  const handleTouchMove = (e: React.TouchEvent, id: string) => {
-    const touchEnd = e.targetTouches[0].clientX;
-    if (touchStart - touchEnd > 70) setSwipedId(id); // Swipe à gauche
-    if (touchEnd - touchStart > 70) setSwipedId(null); // Swipe à droite (annuler)
-  };
 
   return (
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => (
         <div key={t.id} className="relative overflow-hidden rounded-[24px]">
-          {/* Bouton Corbeille en arrière-plan */}
-          <button 
-            onClick={() => { onDelete(t.id); setSwipedId(null); }}
-            className="absolute right-0 top-0 bottom-0 w-20 bg-red-500 text-white flex items-center justify-center transition-opacity"
-          >
-            <Trash2 size={24} />
-          </button>
+          {/* ZONE DE SUPPRESSION (Arrière-plan) */}
+          <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6 rounded-[24px]">
+            <Trash2 className="text-white" size={24} />
+          </div>
 
-          {/* Carte de Transaction */}
+          {/* CARTE TRANSACTION */}
           <div 
-            onTouchStart={handleTouchStart}
-            onTouchMove={(e) => handleTouchMove(e, t.id)}
-            onClick={() => swipedId === t.id ? setSwipedId(null) : onEdit(t)} 
+            onTouchStart={(e) => setStartX(e.touches[0].clientX)}
+            onTouchMove={(e) => {
+              const diff = startX - e.touches[0].clientX;
+              if (diff > 50) setSwipedId(t.id);
+              if (diff < -50) setSwipedId(null);
+            }}
+            onClick={() => swipedId === t.id ? setSwipedId(null) : onEdit(t)}
             style={{ transform: swipedId === t.id ? 'translateX(-80px)' : 'translateX(0)' }}
             className={`flex items-center justify-between p-4 bg-card border transition-transform duration-300 ease-out cursor-pointer shadow-sm relative z-10 rounded-[24px]
               ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
@@ -81,7 +76,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete 
                   {t.description || "Sans description"}
                 </span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getCategoryStyle(t.category || '')}`}>
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')}`}>
                     {t.category || "Général"}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-medium">
@@ -94,16 +89,25 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete 
             <div className={`font-black text-sm whitespace-nowrap ml-3 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
               {t.type === 'income' ? '+' : '-'}{Number(t.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
             </div>
+
+            {swipedId === t.id && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
+                className="absolute inset-0 bg-red-500 z-20 flex items-center justify-center text-white font-black uppercase text-xs tracking-widest"
+              >
+                Confirmer la suppression
+              </button>
+            )}
           </div>
         </div>
       ))}
 
       {transactions.length > displayCount && (
         <button 
-          onClick={() => setDisplayCount(prev => prev + 20)}
+          onClick={() => setDisplayCount(prev => prev + 15)}
           className="mt-2 py-4 w-full text-blue-600 font-black text-[10px] uppercase tracking-widest italic"
         >
-          Voir plus de mouvements...
+          Afficher plus de mouvements...
         </button>
       )}
     </div>
