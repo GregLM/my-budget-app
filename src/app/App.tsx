@@ -176,23 +176,22 @@ export default function App() {
         )}
       </main>
 
-      {/* REMPLACE TOUTE TA NAV PAR CELLE-CI DANS APP.TSX */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 px-4 z-50">
-        <div className="max-w-md mx-auto h-full grid grid-cols-3 items-center">
+      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 z-50 px-4">
+        <div className="max-w-md mx-auto h-full flex items-center">
           
-          {/* GAUCHE : HOME & STATS */}
-          <div className="flex justify-around items-center">
-            <button onClick={() => setActiveTab('dashboard')}>
+          {/* ZONE GAUCHE (33%) */}
+          <div className="flex-1 flex justify-center gap-8">
+            <button onClick={() => setActiveTab('dashboard')} className="p-2">
               <Home size={24} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
-            <button onClick={() => setActiveTab('stats')}>
+            <button onClick={() => setActiveTab('stats')} className="p-2">
               <PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
           </div>
 
-          {/* CENTRE : BOUTON + ET TARGET (SIMULATEUR) */}
-          <div className="relative flex justify-center">
-            <div className="absolute -top-12 flex items-center">
+          {/* ZONE CENTRALE (FIXE) : Point d'ancrage du + */}
+          <div className="relative w-20 flex justify-center">
+            <div className="absolute -top-10 flex items-center">
               <button 
                 onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
                 className="bg-blue-600 text-white p-5 rounded-full shadow-[0_10px_25px_rgba(37,99,235,0.4)] border-8 border-background active:scale-90 transition-all z-20"
@@ -200,25 +199,25 @@ export default function App() {
                 <Plus size={32} strokeWidth={3} />
               </button>
               
-              {/* LE SIMULATEUR : Placé de manière relative au bouton + */}
+              {/* LE SIMULATEUR "JE PEUX ?" : Positionné à droite du + sans le décaler */}
               <button 
                 onClick={() => alert("Simulateur bientôt disponible !")} 
-                className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all -ml-4 mt-8 z-10"
+                className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all z-10 -ml-3 mt-8"
               >
                 <Target size={18} />
               </button>
             </div>
           </div>
 
-          {/* DROITE : SETTINGS */}
-          <div className="flex justify-end pr-4">
-            <button onClick={() => setActiveTab('settings')}>
+          {/* ZONE DROITE (33%) */}
+          <div className="flex-1 flex justify-center">
+            <button onClick={() => setActiveTab('settings')} className="p-2">
               <Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
           </div>
+
         </div>
       </nav>
-
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />
     </div>
   );
