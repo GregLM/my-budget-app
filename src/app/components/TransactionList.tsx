@@ -7,7 +7,7 @@ interface TransactionListProps {
   onToggleCheck: (t: any) => void;
   onDelete: (id: string) => void;
   onDuplicate: (t: any) => void;
-  onCategoryClick?: (category: string) => void; // NOUVEAU
+  onCategoryClick?: (category: string) => void;
 }
 
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate, onCategoryClick }: TransactionListProps) {
@@ -16,9 +16,11 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   // États tactiles
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
-  const [startTime, setStartTime] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [isHitboxTarget, setIsHitboxTarget] = useState(false);
+  
+  // C'est ici que la magie du Zoning opère :
+  // On stocke 'check' (gauche), 'amount' (droite) ou null (centre)
+  const [hitTarget, setHitTarget] = useState<'check' | 'amount' | null>(null);
 
   const SWIPE_THRESHOLD = 150; 
   const DEAD_ZONE = 50;        
@@ -47,12 +49,23 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     const startX = e.targetTouches[0].clientX;
     setTouchStart(startX);
     setTouchCurrent(startX);
-    setStartTime(Date.now());
     setActiveId(id);
 
+    // DÉTECTION INTELLIGENTE DE LA ZONE CIBLE
     const target = e.target as HTMLElement;
-    const isCheckbox = !!target.closest('[data-role="checkbox-zone"]');
-    setIsHitboxTarget(isCheckbox);
+    
+    // Si on a touché le rond (ou sa zone élargie)
+    if (target.closest('[data-role="checkbox-zone"]')) {
+      setHitTarget('check');
+    } 
+    // Si on a touché le montant à droite
+    else if (target.closest('[data-role="amount-zone"]')) {
+      setHitTarget('amount');
+    } 
+    // Sinon, c'est le centre (titre, date...)
+    else {
+      setHitTarget(null);
+    }
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
@@ -62,27 +75,33 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   const onTouchEnd = (t: any) => {
     const rawDistance = touchCurrent - touchStart;
     const absDistance = Math.abs(rawDistance);
-    const duration = Date.now() - startTime;
 
+    // 1. SWIPE (Priorité absolue)
     if (rawDistance > SWIPE_THRESHOLD) {
       onDuplicate(t);
     } 
     else if (rawDistance < -SWIPE_THRESHOLD) {
       onDelete(t.id);
     }
+    // 2. CLIC (Si pas de mouvement significatif)
     else if (absDistance < DEAD_ZONE) {
-      if (t.isFixed) {
-        if (isHitboxTarget) onToggleCheck(t);
-      } else {
-        onEdit(t);
+      
+      if (hitTarget === 'check') {
+         // Clic GAUCHE : Pointage (si c'est un flux fixe)
+         if (t.isFixed) onToggleCheck(t);
+      } 
+      else if (hitTarget === 'amount') {
+         // Clic DROITE : Édition
+         onEdit(t);
       }
+      // Si hitTarget est null (Centre) => RIEN NE SE PASSE.
     }
 
+    // Reset complet
     setTouchStart(0);
     setTouchCurrent(0);
-    setStartTime(0);
     setActiveId(null);
-    setIsHitboxTarget(false);
+    setHitTarget(null);
   };
 
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -100,6 +119,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
         return (
           <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
+            {/* Background Actions (Swipe) */}
             <div 
               className={`absolute inset-0 flex items-center px-6 transition-colors ${
                 isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''
@@ -110,6 +130,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               {isDeleting && <Trash2 className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
             </div>
 
+            {/* Carte Principale */}
             <div 
               onTouchStart={(e) => onTouchStart(e, t.id)}
               onTouchMove={onTouchMove}
@@ -118,31 +139,38 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 transform: `translateX(${distance}px)`,
                 transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
               }}
-              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] cursor-pointer active:scale-[0.98]
+              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] active:scale-[0.99]
                 ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
             >
               <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
                 {t.isFixed ? (
+                  // ZONE GAUCHE : CHECKBOX
+                  // data-role="checkbox-zone" permet d'identifier le clic ici
                   <div data-role="checkbox-zone" className="shrink-0 pointer-events-auto cursor-pointer p-3 -m-3 rounded-full">
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
                 ) : (
+                  // Pas de zone active ici pour les flux non-fixes
                   <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-black text-muted-foreground text-[10px] uppercase shrink-0">
                     {t.category ? t.category.substring(0, 2) : '??'}
                   </div>
                 )}
                 
+                {/* ZONE CENTRE : Contient le texte et le tag */}
                 <div className="flex flex-col min-w-0">
                   <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                     {t.description || "Sans description"}
                   </span>
                   <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
-                    {/* BOUTON CATÉGORIE ISOLÉ */}
+                    {/* TAG CATÉGORIE : Isolé avec stopPropagation */}
                     <button 
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); onCategoryClick && t.category && onCategoryClick(t.category); }}
-                      onTouchStart={(e) => e.stopPropagation()} // STOPPE LE PARENT
-                      onTouchEnd={(e) => e.stopPropagation()}   // STOPPE LE PARENT
+                      onClick={(e) => { 
+                          e.stopPropagation(); // Bloque tout
+                          onCategoryClick && t.category && onCategoryClick(t.category); 
+                      }}
+                      onTouchStart={(e) => e.stopPropagation()} // Bloque le swipe/touch
+                      onTouchEnd={(e) => e.stopPropagation()}
                       className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}
                     >
                       {t.category || "Général"}
@@ -154,8 +182,14 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 </div>
               </div>
 
-              <div className={`font-black text-sm whitespace-nowrap ml-3 pointer-events-none ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
-                {t.type === 'income' ? '+' : '-'}{Number(t.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+              {/* ZONE DROITE : MONTANT */}
+              {/* data-role="amount-zone" permet d'identifier le clic ici pour l'édition */}
+              <div 
+                data-role="amount-zone"
+                className={`font-black text-sm whitespace-nowrap ml-3 pointer-events-auto cursor-pointer p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}
+              >
+                {/* Correction Math.abs() pour éviter le double négatif */}
+                {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
               </div>
             </div>
           </div>
