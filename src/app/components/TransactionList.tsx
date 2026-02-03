@@ -10,7 +10,7 @@ interface TransactionListProps {
 }
 
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate }: TransactionListProps) {
-  const [displayCount, setDisplayCount] = useState(5);
+  const [displayCount, setDisplayCount] = useState(20);
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -37,6 +37,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
   const onTouchStart = (e: React.TouchEvent, id: string) => {
     setTouchStart(e.targetTouches[0].clientX);
+    setTouchCurrent(e.targetTouches[0].clientX); // Initialiser current = start
     setActiveId(id);
   };
 
@@ -45,36 +46,43 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   };
 
   const onTouchEnd = (t: any) => {
-    const movement = touchCurrent - touchStart;
-    const threshold = window.innerWidth * 0.40; // Seuil à 40% de l'écran
-  
-    // IMPORTANT : Si le mouvement est faible (< 20px), on ne fait rien 
-    // Cela laisse le "onClick" de la carte se déclencher normalement.
-    if (Math.abs(movement) > 20) {
-      if (movement > threshold) onDuplicate(t);
-      else if (movement < -threshold) onDelete(t.id);
-    }
-  
+    const rawDistance = touchCurrent - touchStart;
+    const absDistance = Math.abs(rawDistance);
+    const threshold = window.innerWidth * 0.35; // Seuil de déclenchement (35%)
+
+    // Si on a bougé de plus de 10px, c'est un swipe, on agit
+    if (absDistance > 10) {
+      if (rawDistance > threshold) onDuplicate(t);
+      else if (rawDistance < -threshold) onDelete(t.id);
+    } 
+    // Si < 10px, on ne fait rien ici, l'événement onClick prendra le relais naturellement
+
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);
   };
 
+  // Tri et affichage
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const visible = sorted.slice(0, displayCount);
 
   return (
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => {
+        // Calcul de la distance réelle
         const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
+        
+        // Zone morte : Si le mouvement est < 10px, on considère distance = 0 (pas de mouvement visuel)
         const distance = Math.abs(rawDistance) > 10 ? rawDistance : 0;
+        
         const isDuplicating = distance > 0;
         const isDeleting = distance < 0;
         const absDistance = Math.abs(distance);
+        // Opacité progressive des icônes de fond
         const opacity = Math.min(absDistance / 100, 1);
 
         return (
-          <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900">
+          <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
             {/* Background Actions */}
             <div 
               className={`absolute inset-0 flex items-center px-6 transition-colors ${
@@ -91,17 +99,19 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               onTouchStart={(e) => onTouchStart(e, t.id)}
               onTouchMove={onTouchMove}
               onTouchEnd={() => onTouchEnd(t)}
-              onClick={() => onEdit(t)}
+              // Au clic : Si c'est fixe (isFixed), on toggle le check. Sinon on édite.
+              onClick={() => t.isFixed ? onToggleCheck(t) : onEdit(t)}
               style={{ 
                 transform: `translateX(${distance}px)`,
                 transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
               }}
-              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px]
+              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] cursor-pointer
                 ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
             >
               <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
                 {t.isFixed ? (
-                  <div className="shrink-0">
+                  <div className="shrink-0 transition-transform active:scale-90">
+                    {/* L'icône change visuellement selon l'état */}
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
                 ) : (
