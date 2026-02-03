@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CheckCircle2, Circle, Trash2, Copy } from 'lucide-react';
 
 interface TransactionListProps {
@@ -13,14 +13,14 @@ interface TransactionListProps {
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate, onCategoryClick }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(20);
   
-  // États tactiles
+  // États visuels (Animation)
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   
-  // C'est ici que la magie du Zoning opère :
-  // On stocke 'check' (gauche), 'amount' (droite) ou null (centre)
-  const [hitTarget, setHitTarget] = useState<'check' | 'amount' | null>(null);
+  // LOGIQUE INTERNE INSTANTANÉE (useRef)
+  // Permet de stocker la zone touchée sans attendre le re-render de React
+  const hitTarget = useRef<'check' | 'amount' | null>(null);
 
   const SWIPE_THRESHOLD = 150; 
   const DEAD_ZONE = 50;        
@@ -51,20 +51,16 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     setTouchCurrent(startX);
     setActiveId(id);
 
-    // DÉTECTION INTELLIGENTE DE LA ZONE CIBLE
+    // Détection immédiate de la zone
     const target = e.target as HTMLElement;
     
-    // Si on a touché le rond (ou sa zone élargie)
+    // On remonte l'arbre DOM pour trouver le rôle
     if (target.closest('[data-role="checkbox-zone"]')) {
-      setHitTarget('check');
-    } 
-    // Si on a touché le montant à droite
-    else if (target.closest('[data-role="amount-zone"]')) {
-      setHitTarget('amount');
-    } 
-    // Sinon, c'est le centre (titre, date...)
-    else {
-      setHitTarget(null);
+      hitTarget.current = 'check';
+    } else if (target.closest('[data-role="amount-zone"]')) {
+      hitTarget.current = 'amount';
+    } else {
+      hitTarget.current = null; // Zone morte (Centre)
     }
   };
 
@@ -76,7 +72,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     const rawDistance = touchCurrent - touchStart;
     const absDistance = Math.abs(rawDistance);
 
-    // 1. SWIPE (Priorité absolue)
+    // 1. SWIPE (Prioritaire)
     if (rawDistance > SWIPE_THRESHOLD) {
       onDuplicate(t);
     } 
@@ -86,22 +82,21 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     // 2. CLIC (Si pas de mouvement significatif)
     else if (absDistance < DEAD_ZONE) {
       
-      if (hitTarget === 'check') {
-         // Clic GAUCHE : Pointage (si c'est un flux fixe)
+      // On lit la valeur INSTANTANÉE de la ref
+      if (hitTarget.current === 'check') {
          if (t.isFixed) onToggleCheck(t);
       } 
-      else if (hitTarget === 'amount') {
-         // Clic DROITE : Édition
+      else if (hitTarget.current === 'amount') {
          onEdit(t);
       }
-      // Si hitTarget est null (Centre) => RIEN NE SE PASSE.
+      // Si hitTarget.current est null (Centre) -> RIEN
     }
 
-    // Reset complet
+    // Reset
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);
-    setHitTarget(null);
+    hitTarget.current = null;
   };
 
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -119,7 +114,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
         return (
           <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
-            {/* Background Actions (Swipe) */}
+            {/* Background Actions */}
             <div 
               className={`absolute inset-0 flex items-center px-6 transition-colors ${
                 isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''
@@ -145,32 +140,29 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
                 {t.isFixed ? (
                   // ZONE GAUCHE : CHECKBOX
-                  // data-role="checkbox-zone" permet d'identifier le clic ici
                   <div data-role="checkbox-zone" className="shrink-0 pointer-events-auto cursor-pointer p-3 -m-3 rounded-full">
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
                 ) : (
-                  // Pas de zone active ici pour les flux non-fixes
                   <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-black text-muted-foreground text-[10px] uppercase shrink-0">
                     {t.category ? t.category.substring(0, 2) : '??'}
                   </div>
                 )}
                 
-                {/* ZONE CENTRE : Contient le texte et le tag */}
+                {/* ZONE CENTRE : RIEN (Sauf Tag) */}
                 <div className="flex flex-col min-w-0">
                   <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                     {t.description || "Sans description"}
                   </span>
                   <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
-                    {/* TAG CATÉGORIE : Isolé avec stopPropagation */}
+                    {/* TAG CATÉGORIE : Clic autorisé, Swipe autorisé */}
                     <button 
                       type="button"
                       onClick={(e) => { 
-                          e.stopPropagation(); // Bloque tout
+                          e.stopPropagation(); // On arrête tout, c'est le filtre
                           onCategoryClick && t.category && onCategoryClick(t.category); 
                       }}
-                      onTouchStart={(e) => e.stopPropagation()} // Bloque le swipe/touch
-                      onTouchEnd={(e) => e.stopPropagation()}
+                      // On retire le stopPropagation du touchStart pour permettre le swipe même en partant du tag
                       className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}
                     >
                       {t.category || "Général"}
@@ -183,12 +175,10 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               </div>
 
               {/* ZONE DROITE : MONTANT */}
-              {/* data-role="amount-zone" permet d'identifier le clic ici pour l'édition */}
               <div 
                 data-role="amount-zone"
                 className={`font-black text-sm whitespace-nowrap ml-3 pointer-events-auto cursor-pointer p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}
               >
-                {/* Correction Math.abs() pour éviter le double négatif */}
                 {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
               </div>
             </div>
