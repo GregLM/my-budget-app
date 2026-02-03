@@ -46,15 +46,15 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
   const onTouchEnd = (t: any) => {
     const distance = touchCurrent - touchStart;
-    const threshold = window.innerWidth * 0.4;
-
-    // PROTECTION POINTAGE : Si le mouvement est minuscule (< 10px), on annule le swipe
-    // Cela redonne la priorité au clic pour cocher/pointer
+    const threshold = window.innerWidth * 0.45;
+  
+    // Si le doigt a bougé de plus de 10px, c'est un swipe. 
+    // Sinon, on ne fait rien, ce qui laisse le "onClick" (le pointage) s'exécuter.
     if (Math.abs(distance) > 10) {
       if (distance > threshold) onDuplicate(t);
       else if (distance < -threshold) onDelete(t.id);
     }
-
+  
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);

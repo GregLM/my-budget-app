@@ -178,44 +178,25 @@ export default function App() {
 
       {/* NAV CENTRAGE ABSOLU - App.tsx */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 z-50">
-        <div className="max-w-md mx-auto h-full grid grid-cols-3 items-center relative">
-          
-          {/* GAUCHE */}
-          <div className="flex justify-around items-center px-4">
-            <button onClick={() => setActiveTab('dashboard')}>
-              <Home size={24} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
-            </button>
-            <button onClick={() => setActiveTab('stats')}>
-              <PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} />
-            </button>
+        <div className="max-w-md mx-auto h-full flex relative items-center justify-between px-10">
+          <div className="flex gap-10">
+            <button onClick={() => setActiveTab('dashboard')}><Home size={24} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
+            <button onClick={() => setActiveTab('stats')}><PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
           </div>
 
-          {/* CENTRE : ANCRAGE FIXE POUR LE + */}
-          <div className="flex justify-center items-center">
-            <div className="absolute -top-10 flex items-center">
-              <button 
-                onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
-                className="bg-blue-600 text-white p-5 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all z-20"
-              >
+          {/* CENTRAGE ABSOLU INDÉPENDANT */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-10 flex items-center pointer-events-none">
+            <div className="relative flex items-center pointer-events-auto">
+              <button onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} className="bg-blue-600 text-white p-5 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all z-20">
                 <Plus size={32} strokeWidth={3} />
               </button>
-              
-              {/* BOUTON VERT : Décalé par rapport au centre sans pousser le bleu */}
-              <button 
-                onClick={() => alert("Simulateur bientôt disponible !")} 
-                className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all -ml-3 mt-8 z-10"
-              >
+              <button onClick={() => alert("Simulateur bientôt disponible !")} className="bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all z-10 -ml-3 mt-8">
                 <Target size={18} />
               </button>
             </div>
           </div>
 
-          {/* DROITE */}
-          <div className="flex justify-center px-4">
-            <button onClick={() => setActiveTab('settings')}>
-              <Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
-            </button>
-          </div>
+          <button onClick={() => setActiveTab('settings')}><Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
         </div>
       </nav>
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />
