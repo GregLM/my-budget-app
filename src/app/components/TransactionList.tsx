@@ -46,15 +46,18 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
   const onTouchEnd = (t: any) => {
     const distance = touchCurrent - touchStart;
-    const threshold = window.innerWidth * 0.45;
+    const threshold = window.innerWidth * 0.40; // 40% de l'écran
   
-    // Si le doigt a bougé de plus de 10px, c'est un swipe. 
-    // Sinon, on ne fait rien, ce qui laisse le "onClick" (le pointage) s'exécuter.
-    if (Math.abs(distance) > 10) {
-      if (distance > threshold) onDuplicate(t);
-      else if (distance < -threshold) onDelete(t.id);
+    // On ignore les mouvements inférieurs à 20px (considérés comme des taps)
+    if (Math.abs(distance) > 20) {
+      if (distance > threshold) {
+        onDuplicate(t);
+      } else if (distance < -threshold) {
+        onDelete(t.id);
+      }
     }
   
+    // Réinitialisation
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);
@@ -66,7 +69,9 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   return (
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => {
-        const distance = activeId === t.id ? touchCurrent - touchStart : 0;
+        const distance = (activeId === t.id && Math.abs(touchCurrent - touchStart) > 10) 
+        ? touchCurrent - touchStart 
+        : 0;
         const isDuplicating = distance > 0;
         const isDeleting = distance < 0;
         const absDistance = Math.abs(distance);
