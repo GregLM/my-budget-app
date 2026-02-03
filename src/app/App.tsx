@@ -178,10 +178,10 @@ export default function App() {
 
       {/* NAV CENTRAGE ABSOLU - App.tsx */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border h-20 z-50">
-        <div className="max-w-md mx-auto h-full flex items-center justify-between px-10 relative">
+        <div className="max-w-md mx-auto h-full flex items-center justify-between px-8 relative">
           
-          {/* Groupe Gauche */}
-          <div className="flex gap-10">
+          {/* Groupe Gauche (2 icônes) */}
+          <div className="flex items-center gap-8 w-1/3">
             <button onClick={() => setActiveTab('dashboard')}>
               <Home size={24} className={activeTab === 'dashboard' ? 'text-blue-600' : 'text-muted-foreground'} />
             </button>
@@ -190,31 +190,30 @@ export default function App() {
             </button>
           </div>
 
-          {/* BLOC CENTRAL : Centrage absolu par rapport au parent */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-8 flex flex-col items-center">
-            <div className="relative flex items-center justify-center w-24"> 
-              {/* Bouton Principal '+' */}
-              <button 
-                onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
-                className="bg-blue-600 text-white p-5 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all z-20"
-              >
-                <Plus size={32} strokeWidth={3} />
-              </button>
-              
-              {/* Bouton Simulateur 'Target' - Positionné de façon relative au bouton + */}
-              <button 
-                onClick={() => alert("Simulateur bientôt disponible !")} 
-                className="absolute -right-2 bottom-0 bg-emerald-500 text-white p-3 rounded-full shadow-lg border-4 border-background active:scale-90 transition-all z-30"
-              >
-                <Target size={18} />
-              </button>
-            </div>
+          {/* BLOC CENTRAL (Le bouton +) */}
+          {/* On le garde en absolute pour qu'il puisse "déborder" vers le haut sans déformer la barre */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-6">
+            <button 
+              onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} 
+              className="bg-blue-600 text-white p-4 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all"
+            >
+              <Plus size={32} strokeWidth={3} />
+            </button>
           </div>
 
-          {/* Groupe Droit (Réglages) */}
-          <button onClick={() => setActiveTab('settings')}>
-            <Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
-          </button>
+          {/* Groupe Droite (2 icônes dont le simulateur) */}
+          <div className="flex items-center justify-end gap-6 w-1/3">
+            <button 
+              onClick={() => alert("Simulateur bientôt disponible !")} 
+              className="bg-emerald-500 text-white p-2.5 rounded-full shadow-lg active:scale-90 transition-all"
+            >
+              <Target size={20} />
+            </button>
+            <button onClick={() => setActiveTab('settings')}>
+              <Settings size={24} className={activeTab === 'settings' ? 'text-blue-600' : 'text-muted-foreground'} />
+            </button>
+          </div>
+
         </div>
       </nav>
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />

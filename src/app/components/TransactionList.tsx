@@ -45,19 +45,16 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   };
 
   const onTouchEnd = (t: any) => {
-    const distance = touchCurrent - touchStart;
-    const threshold = window.innerWidth * 0.40; // 40% de l'écran
+    const movement = touchCurrent - touchStart;
+    const threshold = window.innerWidth * 0.40; // Seuil à 40% de l'écran
   
-    // On ignore les mouvements inférieurs à 20px (considérés comme des taps)
-    if (Math.abs(distance) > 20) {
-      if (distance > threshold) {
-        onDuplicate(t);
-      } else if (distance < -threshold) {
-        onDelete(t.id);
-      }
+    // IMPORTANT : Si le mouvement est faible (< 20px), on ne fait rien 
+    // Cela laisse le "onClick" de la carte se déclencher normalement.
+    if (Math.abs(movement) > 20) {
+      if (movement > threshold) onDuplicate(t);
+      else if (movement < -threshold) onDelete(t.id);
     }
   
-    // Réinitialisation
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);
@@ -69,9 +66,8 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   return (
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => {
-        const distance = (activeId === t.id && Math.abs(touchCurrent - touchStart) > 10) 
-        ? touchCurrent - touchStart 
-        : 0;
+        const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
+        const distance = Math.abs(rawDistance) > 10 ? rawDistance : 0;
         const isDuplicating = distance > 0;
         const isDeleting = distance < 0;
         const absDistance = Math.abs(distance);
