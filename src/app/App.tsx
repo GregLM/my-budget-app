@@ -5,6 +5,7 @@ import { BalanceCard } from '@/app/components/BalanceCard';
 import { CategoryChart } from '@/app/components/CategoryChart';
 import { TransactionList } from '@/app/components/TransactionList';
 import { AddTransactionDrawer } from '@/app/components/AddTransactionDrawer';
+import { CategoryDetailsDrawer } from '@/app/components/CategoryDetailsDrawer';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -28,6 +29,7 @@ export default function App() {
     { id: '11', name: 'Enfant', amount: "1400" },
     { id: '12', name: 'Revenus', amount: "1097.83" }
   ]);
+  const [viewCategory, setViewCategory] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('eco_budget_final');
@@ -126,7 +128,7 @@ export default function App() {
                   <Hourglass size={14} className="text-blue-500" />
                   <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Mouvements à venir ({stats.upcomingTransactions.length})</h3>
                 </div>
-                <TransactionList transactions={stats.upcomingTransactions} onEdit={setEditingItem} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} onDuplicate={handleDuplicate} />
+                <TransactionList transactions={stats.upcomingTransactions} onEdit={setEditingItem} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} onDuplicate={handleDuplicate} onCategoryClick={(cat) => setViewCategory(cat)} />
                 <div className="h-px bg-border my-8 w-1/2 mx-auto" />
               </div>
             )}
@@ -217,6 +219,16 @@ export default function App() {
         </div>
       </nav>
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />
+      <CategoryDetailsDrawer 
+        category={viewCategory}
+        isOpen={!!viewCategory}
+        onClose={() => setViewCategory(null)}
+        transactions={transactions}
+        onEdit={(t) => { setViewCategory(null); setEditingItem(t); setIsDrawerOpen(true); }}
+        onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
+        onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}
+      />
     </div>
   );
 }

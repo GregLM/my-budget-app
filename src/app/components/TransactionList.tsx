@@ -7,9 +7,10 @@ interface TransactionListProps {
   onToggleCheck: (t: any) => void;
   onDelete: (id: string) => void;
   onDuplicate: (t: any) => void;
+  onCategoryClick?: (category: string) => void; // NOUVEAU
 }
 
-export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate }: TransactionListProps) {
+export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate, onCategoryClick }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(20);
   
   // États tactiles
@@ -17,8 +18,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
-  
-  // NOUVEAU : On stocke si le doigt a atterri sur la Checkbox au départ
   const [isHitboxTarget, setIsHitboxTarget] = useState(false);
 
   const SWIPE_THRESHOLD = 150; 
@@ -51,8 +50,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     setStartTime(Date.now());
     setActiveId(id);
 
-    // DÉTECTION DE ZONE CRITIQUE
-    // On vérifie si l'élément touché (ou son parent) possède l'attribut data-role="checkbox-zone"
     const target = e.target as HTMLElement;
     const isCheckbox = !!target.closest('[data-role="checkbox-zone"]');
     setIsHitboxTarget(isCheckbox);
@@ -67,28 +64,20 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     const absDistance = Math.abs(rawDistance);
     const duration = Date.now() - startTime;
 
-    // 1. GESTION DU SWIPE (Priorité absolue)
     if (rawDistance > SWIPE_THRESHOLD) {
       onDuplicate(t);
     } 
     else if (rawDistance < -SWIPE_THRESHOLD) {
       onDelete(t.id);
     }
-    // 2. GESTION DU CLIC (Zone Restreinte)
     else if (absDistance < DEAD_ZONE) {
       if (t.isFixed) {
-        // Pour les flux FIXES : On ne pointe que si on a visé la Checkbox
-        if (isHitboxTarget) {
-          onToggleCheck(t);
-        }
-        // Sinon : ON NE FAIT RIEN (protection anti-missclick)
+        if (isHitboxTarget) onToggleCheck(t);
       } else {
-        // Pour les flux PASSÉS (non fixes) : On garde l'édition au clic partout
         onEdit(t);
       }
     }
 
-    // Reset
     setTouchStart(0);
     setTouchCurrent(0);
     setStartTime(0);
@@ -104,7 +93,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
       {visible.map((t) => {
         const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
         const distance = Math.abs(rawDistance) > DEAD_ZONE ? rawDistance : 0;
-        
         const isDuplicating = distance > 0;
         const isDeleting = distance < 0;
         const absDistance = Math.abs(distance);
@@ -112,7 +100,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
         return (
           <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
-            {/* Background Actions */}
             <div 
               className={`absolute inset-0 flex items-center px-6 transition-colors ${
                 isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''
@@ -123,7 +110,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               {isDeleting && <Trash2 className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
             </div>
 
-            {/* Card Content */}
             <div 
               onTouchStart={(e) => onTouchStart(e, t.id)}
               onTouchMove={onTouchMove}
@@ -137,13 +123,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
             >
               <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
                 {t.isFixed ? (
-                  // ZONE HITBOX DÉFINIE ICI
-                  // J'ai ajouté 'pointer-events-auto' pour que le wrapper capture bien l'événement
-                  // et du padding (-m-2 p-2) pour agrandir la zone tactile sans changer le visuel
-                  <div 
-                    data-role="checkbox-zone" 
-                    className="shrink-0 pointer-events-auto cursor-pointer p-3 -m-3 rounded-full"
-                  >
+                  <div data-role="checkbox-zone" className="shrink-0 pointer-events-auto cursor-pointer p-3 -m-3 rounded-full">
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
                 ) : (
@@ -156,10 +136,17 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                   <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                     {t.description || "Sans description"}
                   </span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')}`}>
+                  <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
+                    {/* BOUTON CATÉGORIE ISOLÉ */}
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onCategoryClick && t.category && onCategoryClick(t.category); }}
+                      onTouchStart={(e) => e.stopPropagation()} // STOPPE LE PARENT
+                      onTouchEnd={(e) => e.stopPropagation()}   // STOPPE LE PARENT
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}
+                    >
                       {t.category || "Général"}
-                    </span>
+                    </button>
                     <span className="text-[10px] text-muted-foreground font-medium">
                        {t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}
                     </span>
@@ -174,12 +161,8 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
           </div>
         );
       })}
-
       {transactions.length > displayCount && (
-        <button 
-          onClick={() => setDisplayCount(prev => prev + 15)}
-          className="mt-2 py-4 w-full text-blue-600 font-black text-[10px] uppercase tracking-widest italic"
-        >
+        <button onClick={() => setDisplayCount(prev => prev + 15)} className="mt-2 py-4 w-full text-blue-600 font-black text-[10px] uppercase tracking-widest italic">
           Afficher plus de mouvements...
         </button>
       )}
