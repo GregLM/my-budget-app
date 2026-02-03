@@ -1,197 +1,175 @@
-import React, { useState } from 'react';
-import { CheckCircle2, Circle, Trash2, Copy } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Drawer } from 'vaul';
+import { useForm } from 'react-hook-form';
+import { Check, Delete, Calendar, Type, Trash2 } from 'lucide-react';
 
-interface TransactionListProps {
-  transactions: any[];
-  onEdit: (t: any) => void;
-  onToggleCheck: (t: any) => void;
-  onDelete: (id: string) => void;
-  onDuplicate: (t: any) => void;
-  onCategoryClick?: (category: string) => void; // On garde bien cette prop !
-}
-
-export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate, onCategoryClick }: TransactionListProps) {
-  const [displayCount, setDisplayCount] = useState(20);
+// NOTE : C'est bien "export function" et pas "export default function"
+export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, onDelete, categories = [] }: any) {
+  const { register, handleSubmit, reset, watch, setValue } = useForm();
   
-  // États tactiles
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchCurrent, setTouchCurrent] = useState(0);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  
-  // On stocke sur QUOI l'utilisateur a posé son doigt au départ
-  // 'check' = rond, 'amount' = montant, null = le reste (le centre)
-  const [hitTarget, setHitTarget] = useState<'check' | 'amount' | null>(null);
+  const [amountString, setAmountString] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
-  const SWIPE_THRESHOLD = 150; 
-  const DEAD_ZONE = 50;        
-
-  const getPastelTag = (category: string) => {
-    const name = category.toLowerCase();
-    const pastels: Record<string, string> = {
-      'emprunt': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-      'alim': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-      'abo': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-      'energie': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-      'transport': 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
-      'loisir': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
-      'epargne': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-      'impot': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-      'santé': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
-      'assurance': 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      'enfant': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-      'revenu': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    };
-    const match = Object.keys(pastels).find(key => name.includes(key));
-    return match ? pastels[match] : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
-  };
-
-  const onTouchStart = (e: React.TouchEvent, id: string) => {
-    const startX = e.targetTouches[0].clientX;
-    setTouchStart(startX);
-    setTouchCurrent(startX);
-    setActiveId(id);
-
-    // DÉTECTION DE LA ZONE TOUCHÉE
-    const target = e.target as HTMLElement;
-    
-    if (target.closest('[data-role="checkbox-zone"]')) {
-      setHitTarget('check');
-    } else if (target.closest('[data-role="amount-zone"]')) {
-      setHitTarget('amount');
-    } else {
-      setHitTarget(null); // C'est le centre (la zone "morte" pour le clic)
-    }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchCurrent(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = (t: any) => {
-    const rawDistance = touchCurrent - touchStart;
-    const absDistance = Math.abs(rawDistance);
-
-    // 1. GESTION DU SWIPE (Prioritaire)
-    // Si on a bougé de plus de 150px, c'est un swipe, peu importe d'où on est parti.
-    if (rawDistance > SWIPE_THRESHOLD) {
-      onDuplicate(t);
-    } 
-    else if (rawDistance < -SWIPE_THRESHOLD) {
-      onDelete(t.id);
-    }
-    // 2. GESTION DU CLIC (Si pas de mouvement)
-    else if (absDistance < DEAD_ZONE) {
-      
-      if (hitTarget === 'check') {
-         // Clic sur le ROND -> Pointer
-         if (t.isFixed) onToggleCheck(t);
-      } 
-      else if (hitTarget === 'amount') {
-         // Clic sur le MONTANT -> Modifier
-         onEdit(t);
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        reset({ ...initialData });
+        setAmountString(Math.abs(initialData.amount).toString());
+      } else {
+        reset({ description: '', category: categories[0], type: 'expense', isFixed: false, date: new Date().toISOString().split('T')[0] });
+        setAmountString('');
       }
-      // Si hitTarget === null (Centre), IL NE SE PASSE RIEN.
+      setIsTyping(false);
     }
+  }, [initialData, reset, open, categories]);
 
-    // Reset
-    setTouchStart(0);
-    setTouchCurrent(0);
-    setActiveId(null);
-    setHitTarget(null);
+  useEffect(() => {
+    const val = parseFloat(amountString || '0');
+    setValue('amount', val);
+  }, [amountString, setValue]);
+
+  const onSubmit = (data: any) => {
+    if (!amountString) return;
+    const finalAmount = parseFloat(amountString);
+    const signedAmount = data.type === 'expense' ? -Math.abs(finalAmount) : Math.abs(finalAmount);
+    onAdd({ ...data, amount: signedAmount });
+    onOpenChange(false);
   };
 
-  const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const visible = sorted.slice(0, displayCount);
+  const handlePress = (val: string) => {
+    if (val === '.' && amountString.includes('.')) return;
+    if (amountString.length > 8) return;
+    setAmountString(prev => prev + val);
+  };
+
+  const handleDeleteDigit = () => {
+    setAmountString(prev => prev.slice(0, -1));
+  };
+
+  const type = watch('type');
 
   return (
-    <div className="flex flex-col gap-3 pb-10">
-      {visible.map((t) => {
-        const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
-        const distance = Math.abs(rawDistance) > DEAD_ZONE ? rawDistance : 0;
-        const isDuplicating = distance > 0;
-        const isDeleting = distance < 0;
-        const absDistance = Math.abs(distance);
-        const opacity = Math.min(absDistance / 100, 1);
+    <Drawer.Root open={open} onOpenChange={onOpenChange}>
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" />
+        <Drawer.Content className="bg-background flex flex-col rounded-t-[32px] fixed bottom-0 left-0 right-0 z-50 outline-none max-h-[96dvh] h-auto border-t border-border shadow-2xl"
+          onPointerDownOutside={(e) => e.preventDefault()}>
+          
+          <div className="flex-1 overflow-y-auto p-5 pb-2">
+            <div className="mx-auto w-12 h-1.5 rounded-full bg-muted mb-6" />
+            
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+              
+              <div className="flex bg-muted p-1 rounded-2xl h-12 shrink-0">
+                <button type="button" onClick={() => setValue('type', 'expense')} className={`flex-1 rounded-xl text-xs font-black uppercase transition-all ${type === 'expense' ? 'bg-background shadow-sm text-red-500' : 'text-muted-foreground'}`}>Dépense</button>
+                <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 rounded-xl text-xs font-black uppercase transition-all ${type === 'income' ? 'bg-background shadow-sm text-emerald-500' : 'text-muted-foreground'}`}>Revenu</button>
+              </div>
 
-        return (
-          <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
-            {/* Background Actions */}
-            <div 
-              className={`absolute inset-0 flex items-center px-6 transition-colors ${
-                isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''
-              }`}
-              style={{ opacity }}
-            >
-              {isDuplicating && <Copy className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
-              {isDeleting && <Trash2 className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
-            </div>
-
-            {/* Carte Principale */}
-            <div 
-              onTouchStart={(e) => onTouchStart(e, t.id)}
-              onTouchMove={onTouchMove}
-              onTouchEnd={() => onTouchEnd(t)}
-              style={{ 
-                transform: `translateX(${distance}px)`,
-                transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
-              }}
-              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] active:scale-[0.99]
-                ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
-            >
-              <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
-                {t.isFixed ? (
-                  // ZONE CHECKBOX (Clickable)
-                  <div data-role="checkbox-zone" className="shrink-0 pointer-events-auto cursor-pointer p-3 -m-3 rounded-full">
-                    {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
-                  </div>
-                ) : (
-                  // Pas de checkbox sur les flux passés, mais on garde l'espace
-                  <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center font-black text-muted-foreground text-[10px] uppercase shrink-0">
-                    {t.category ? t.category.substring(0, 2) : '??'}
-                  </div>
-                )}
-                
-                <div className="flex flex-col min-w-0">
-                  <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                    {t.description || "Sans description"}
-                  </span>
-                  <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
-                    {/* BOUTON CATÉGORIE (Isolé du reste) */}
-                    <button 
-                      type="button"
-                      onClick={(e) => { 
-                          e.stopPropagation(); // Empêche tout autre clic
-                          onCategoryClick && t.category && onCategoryClick(t.category); 
-                      }}
-                      onTouchStart={(e) => e.stopPropagation()} // Le swipe ne partira pas d'ici
-                      onTouchEnd={(e) => e.stopPropagation()}
-                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}
-                    >
-                      {t.category || "Général"}
-                    </button>
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                       {t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}
+              <div className="flex flex-col items-center justify-center py-2">
+                 <div className="flex items-end">
+                    <span className={`text-6xl font-black tracking-tighter ${!amountString ? 'opacity-20' : 'opacity-100'} ${type === 'income' ? 'text-emerald-500' : 'text-foreground'}`}>
+                      {amountString || "0"}
                     </span>
-                  </div>
+                    <span className={`text-3xl font-black mb-2 ml-1 ${type === 'income' ? 'text-emerald-500/50' : 'text-muted-foreground/50'}`}>€</span>
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`bg-muted rounded-2xl p-3 flex items-center gap-2 border transition-colors ${isTyping ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-transparent'}`}>
+                    <Type size={16} className="text-muted-foreground opacity-50" />
+                    <input 
+                        type="text" 
+                        {...register('description', { required: true })} 
+                        placeholder="Quoi ?" 
+                        className="bg-transparent font-bold text-sm outline-none w-full placeholder:text-muted-foreground/50" 
+                        autoComplete="off"
+                        onFocus={() => setIsTyping(true)}
+                        onBlur={() => setIsTyping(false)}
+                    />
+                </div>
+                <div className="bg-muted rounded-2xl p-3 flex items-center gap-2">
+                    <Calendar size={16} className="text-muted-foreground opacity-50" />
+                    <input 
+                        type="date" 
+                        {...register('date', { required: true })} 
+                        className="bg-transparent font-bold text-xs outline-none w-full text-muted-foreground uppercase" 
+                    />
                 </div>
               </div>
 
-              {/* ZONE MONTANT (Clickable pour Modif) */}
-              <div 
-                data-role="amount-zone"
-                className={`font-black text-sm whitespace-nowrap ml-3 pointer-events-auto cursor-pointer p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}
-              >
-                {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+              <div className="flex items-center justify-between px-2">
+                 <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">C'est récurrent ?</span>
+                 <input type="checkbox" {...register('isFixed')} className="w-5 h-5 accent-blue-600 rounded" />
               </div>
-            </div>
+
+              <div>
+                <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-2 block px-2">Catégorie</span>
+                <div className="grid grid-cols-4 gap-2">
+                    {categories.map((cat: string) => (
+                    <button 
+                        key={cat} 
+                        type="button" 
+                        onClick={() => setValue('category', cat)} 
+                        className={`py-2 rounded-xl text-[9px] font-black uppercase border truncate transition-all ${watch('category') === cat ? 'bg-foreground border-foreground text-background scale-105 shadow-lg' : 'border-muted text-muted-foreground hover:bg-muted'}`}
+                    >
+                        {cat.substring(0, 8)}
+                    </button>
+                    ))}
+                </div>
+              </div>
+            </form>
           </div>
-        );
-      })}
-      {transactions.length > displayCount && (
-        <button onClick={() => setDisplayCount(prev => prev + 15)} className="mt-2 py-4 w-full text-blue-600 font-black text-[10px] uppercase tracking-widest italic">
-          Afficher plus de mouvements...
-        </button>
-      )}
-    </div>
+
+          {!isTyping && (
+            <div className="p-5 pt-2 bg-background pb-8 animate-in slide-in-from-bottom-10 fade-in duration-200">
+                <div className="grid grid-cols-4 gap-3 h-64">
+                    <NumBtn val={1} onClick={handlePress} />
+                    <NumBtn val={2} onClick={handlePress} />
+                    <NumBtn val={3} onClick={handlePress} />
+                    <button onClick={handleDeleteDigit} className="bg-muted rounded-2xl flex items-center justify-center active:scale-95 transition-all text-foreground"><Delete size={20}/></button>
+
+                    <NumBtn val={4} onClick={handlePress} />
+                    <NumBtn val={5} onClick={handlePress} />
+                    <NumBtn val={6} onClick={handlePress} />
+                    {initialData?.id ? (
+                        <button type="button" onClick={() => onDelete(initialData.id)} className="bg-red-100 text-red-500 rounded-2xl flex items-center justify-center active:scale-95 transition-all"><Trash2 size={20}/></button>
+                    ) : (
+                        <div /> 
+                    )}
+
+                    <NumBtn val={7} onClick={handlePress} />
+                    <NumBtn val={8} onClick={handlePress} />
+                    <NumBtn val={9} onClick={handlePress} />
+                    
+                    <button 
+                        onClick={handleSubmit(onSubmit)} 
+                        disabled={!amountString}
+                        className={`row-span-2 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 ${!amountString ? 'bg-muted text-muted-foreground' : 'bg-blue-600 text-white shadow-blue-500/30'}`}
+                    >
+                        <Check size={32} strokeWidth={3} />
+                    </button>
+
+                    <NumBtn val={'.'} onClick={handlePress} />
+                    <NumBtn val={0} onClick={handlePress} />
+                </div>
+            </div>
+          )}
+
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
+}
+
+// Fonction utilitaire locale, pas besoin de l'exporter
+function NumBtn({ val, onClick }: { val: number | string, onClick: (v: string) => void }) {
+    return (
+        <button 
+            type="button"
+            onClick={() => onClick(val.toString())}
+            className="h-full bg-muted/50 hover:bg-muted rounded-2xl font-black text-2xl text-foreground flex items-center justify-center active:scale-95 transition-all"
+        >
+            {val}
+        </button>
+    )
 }
