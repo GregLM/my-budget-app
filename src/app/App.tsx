@@ -134,7 +134,7 @@ export default function App() {
             )}
 
             <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">Derniers flux</h3>
-            <TransactionList transactions={transactions.filter(t => !t.isFixed || t.isCleared)} onEdit={setEditingItem} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} onDuplicate={handleDuplicate} />
+            <TransactionList transactions={transactions.filter(t => !t.isFixed || t.isCleared)} onEdit={setEditingItem} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} onDelete={handleDelete} onDuplicate={handleDuplicate} onCategoryClick={(cat) => setViewCategory(cat)} />
           </div>
         )}
 
