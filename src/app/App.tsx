@@ -6,6 +6,7 @@ import { CategoryChart } from '@/app/components/CategoryChart';
 import { TransactionList } from '@/app/components/TransactionList';
 import { AddTransactionDrawer } from '@/app/components/AddTransactionDrawer';
 import { CategoryDetailsDrawer } from '@/app/components/CategoryDetailsDrawer';
+import { SimulatorDrawer } from '@/app/components/SimulatorDrawer';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -30,6 +31,7 @@ export default function App() {
     { id: '12', name: 'Revenus', amount: "1097.83" }
   ]);
   const [viewCategory, setViewCategory] = useState<string | null>(null);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('eco_budget_final');
@@ -206,9 +208,8 @@ export default function App() {
           {/* Groupe Droite (2 icônes dont le simulateur) */}
           <div className="flex items-center justify-end gap-6 w-1/3">
             <button 
-              onClick={() => alert("Simulateur bientôt disponible !")} 
-              className="bg-emerald-500 text-white p-2.5 rounded-full shadow-lg active:scale-90 transition-all"
-            >
+              onClick={() => setIsSimulatorOpen(true)}
+              className="bg-emerald-500 text-white p-2.5 rounded-full shadow-lg active:scale-90 transition-all">
               <Target size={20} />
             </button>
             <button onClick={() => setActiveTab('settings')}>
@@ -228,6 +229,12 @@ export default function App() {
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
         onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}
+      />
+      <SimulatorDrawer 
+        open={isSimulatorOpen} 
+        onOpenChange={setIsSimulatorOpen}
+        currentForecast={stats.forecastTarget} // On lui passe l'atterrissage calculé
+        alertThreshold={alertThreshold}        // Et ton seuil d'alerte (ex: 100€)
       />
     </div>
   );
