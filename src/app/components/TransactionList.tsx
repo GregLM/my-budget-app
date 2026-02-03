@@ -20,6 +20,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   
   // LOGIQUE INTERNE INSTANTANÉE (useRef)
   // Permet de stocker la zone touchée sans attendre le re-render de React
+  // 'check' = rond, 'amount' = montant, null = le reste
   const hitTarget = useRef<'check' | 'amount' | null>(null);
 
   const SWIPE_THRESHOLD = 150; 
@@ -179,6 +180,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 data-role="amount-zone"
                 className={`font-black text-sm whitespace-nowrap ml-3 pointer-events-auto cursor-pointer p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}
               >
+                {/* Correction Math.abs() pour éviter le double négatif */}
                 {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
               </div>
             </div>
