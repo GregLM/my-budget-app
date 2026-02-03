@@ -13,15 +13,14 @@ interface TransactionListProps {
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate, onCategoryClick }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(20);
   
-  // États visuels (Animation)
+  // États visuels pour le Swipe
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   
-  // LOGIQUE INTERNE INSTANTANÉE (useRef)
-  // Permet de stocker la zone touchée sans attendre le re-render de React
-  // 'check' = rond, 'amount' = montant, null = le reste
-  const hitTarget = useRef<'check' | 'amount' | null>(null);
+  // VERROU ANTI-CONFLIT (Swipe vs Clic)
+  // Permet de savoir si un mouvement a eu lieu pour bloquer le clic si nécessaire
+  const isSwiping = useRef(false);
 
   const SWIPE_THRESHOLD = 150; 
   const DEAD_ZONE = 50;        
@@ -47,57 +46,50 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   };
 
   const onTouchStart = (e: React.TouchEvent, id: string) => {
-    const startX = e.targetTouches[0].clientX;
-    setTouchStart(startX);
-    setTouchCurrent(startX);
+    setTouchStart(e.targetTouches[0].clientX);
+    setTouchCurrent(e.targetTouches[0].clientX);
     setActiveId(id);
-
-    // Détection immédiate de la zone
-    const target = e.target as HTMLElement;
-    
-    // On remonte l'arbre DOM pour trouver le rôle
-    if (target.closest('[data-role="checkbox-zone"]')) {
-      hitTarget.current = 'check';
-    } else if (target.closest('[data-role="amount-zone"]')) {
-      hitTarget.current = 'amount';
-    } else {
-      hitTarget.current = null; // Zone morte (Centre)
-    }
+    isSwiping.current = false; // On réinitialise : pour l'instant c'est un tap
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchCurrent(e.targetTouches[0].clientX);
+    const current = e.targetTouches[0].clientX;
+    setTouchCurrent(current);
+    
+    // Si on bouge de plus de 10px, on considère que c'est un début de swipe
+    // Cela permettra de bloquer le clic à la fin
+    if (Math.abs(current - touchStart) > 10) {
+      isSwiping.current = true;
+    }
   };
 
   const onTouchEnd = (t: any) => {
     const rawDistance = touchCurrent - touchStart;
-    const absDistance = Math.abs(rawDistance);
 
-    // 1. SWIPE (Prioritaire)
-    if (rawDistance > SWIPE_THRESHOLD) {
-      onDuplicate(t);
-    } 
-    else if (rawDistance < -SWIPE_THRESHOLD) {
-      onDelete(t.id);
-    }
-    // 2. CLIC (Si pas de mouvement significatif)
-    else if (absDistance < DEAD_ZONE) {
-      
-      // On lit la valeur INSTANTANÉE de la ref
-      if (hitTarget.current === 'check') {
-         if (t.isFixed) onToggleCheck(t);
-      } 
-      else if (hitTarget.current === 'amount') {
-         onEdit(t);
-      }
-      // Si hitTarget.current est null (Centre) -> RIEN
+    // Gestion de l'action SWIPE (Suppression / Duplication)
+    if (Math.abs(rawDistance) > SWIPE_THRESHOLD) {
+      if (rawDistance > 0) onDuplicate(t);
+      else onDelete(t.id);
     }
 
-    // Reset
+    // Reset des états visuels
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);
-    hitTarget.current = null;
+    
+    // On laisse le flag isSwiping à sa valeur pendant quelques millisecondes
+    // pour que l'événement onClick (qui suit le onTouchEnd) puisse le lire et s'annuler
+    setTimeout(() => {
+        isSwiping.current = false;
+    }, 100);
+  };
+
+  // Helper pour gérer les clics en sécurité (Web & Mobile)
+  const handleSafeClick = (e: React.MouseEvent, action: () => void) => {
+      e.stopPropagation();
+      // Si on était en train de swiper, on ignore le clic
+      if (isSwiping.current) return;
+      action();
   };
 
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -135,13 +127,16 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 transform: `translateX(${distance}px)`,
                 transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
               }}
-              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] active:scale-[0.99]
+              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] 
                 ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
             >
-              <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
                 {t.isFixed ? (
-                  // ZONE GAUCHE : CHECKBOX
-                  <div data-role="checkbox-zone" className="shrink-0 pointer-events-auto cursor-pointer p-3 -m-3 rounded-full">
+                  // ZONE CHECKBOX (Clic via onClick sécurisé)
+                  <div 
+                    onClick={(e) => handleSafeClick(e, () => onToggleCheck(t))}
+                    className="shrink-0 cursor-pointer p-3 -m-3 rounded-full hover:bg-muted/50 transition-colors"
+                  >
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
                 ) : (
@@ -150,20 +145,18 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                   </div>
                 )}
                 
-                {/* ZONE CENTRE : RIEN (Sauf Tag) */}
-                <div className="flex flex-col min-w-0">
+                {/* ZONE CENTRE : Texte + Tag */}
+                <div className="flex flex-col min-w-0 pointer-events-none">
                   <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                     {t.description || "Sans description"}
                   </span>
                   <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
-                    {/* TAG CATÉGORIE : Clic autorisé, Swipe autorisé */}
+                    {/* TAG CATÉGORIE (Clic via onClick sécurisé) */}
                     <button 
                       type="button"
-                      onClick={(e) => { 
-                          e.stopPropagation(); // On arrête tout, c'est le filtre
-                          onCategoryClick && t.category && onCategoryClick(t.category); 
-                      }}
-                      // On retire le stopPropagation du touchStart pour permettre le swipe même en partant du tag
+                      onClick={(e) => handleSafeClick(e, () => onCategoryClick && t.category && onCategoryClick(t.category))}
+                      // Pour permettre le swipe même en commençant sur le bouton
+                      onTouchStart={(e) => e.stopPropagation()} 
                       className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}
                     >
                       {t.category || "Général"}
@@ -175,12 +168,11 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 </div>
               </div>
 
-              {/* ZONE DROITE : MONTANT */}
+              {/* ZONE MONTANT (Clic via onClick sécurisé) */}
               <div 
-                data-role="amount-zone"
-                className={`font-black text-sm whitespace-nowrap ml-3 pointer-events-auto cursor-pointer p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}
+                onClick={(e) => handleSafeClick(e, () => onEdit(t))}
+                className={`font-black text-sm whitespace-nowrap ml-3 cursor-pointer p-2 -m-2 hover:opacity-70 transition-opacity ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}
               >
-                {/* Correction Math.abs() pour éviter le double négatif */}
                 {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
               </div>
             </div>
