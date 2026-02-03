@@ -12,14 +12,16 @@ interface TransactionListProps {
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(20);
   
-  // États pour la gestion du tactile
+  // États pour la gestion du tactile et du temps
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
+  const [startTime, setStartTime] = useState(0); // NOUVEAU : Pour mesurer la durée
   const [activeId, setActiveId] = useState<string | null>(null);
 
   // CONSTANTES DE SENSIBILITÉ
-  const SWIPE_THRESHOLD = 150; // Distance pour valider l'action (supprimer/dupliquer)
-  const DEAD_ZONE = 50; // Distance minimale pour que le slide commence VISUELLEMENT
+  const SWIPE_THRESHOLD = 150; // Distance pour valider l'action
+  const DEAD_ZONE = 50;        // Zone morte visuelle
+  const MAX_CLICK_DURATION = 300; // NOUVEAU : Temps max en ms pour considérer un clic (300ms)
 
   const getPastelTag = (category: string) => {
     const name = category.toLowerCase();
@@ -42,42 +44,49 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   };
 
   const onTouchStart = (e: React.TouchEvent, id: string) => {
-    // On capture la position X de départ
     const startX = e.targetTouches[0].clientX;
     setTouchStart(startX);
-    setTouchCurrent(startX); // Important : on initialise current à la même valeur
+    setTouchCurrent(startX);
+    setStartTime(Date.now()); // On lance le chrono
     setActiveId(id);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    // On met à jour la position courante pendant le glissement
     setTouchCurrent(e.targetTouches[0].clientX);
   };
 
   const onTouchEnd = (t: any) => {
     const rawDistance = touchCurrent - touchStart;
     const absDistance = Math.abs(rawDistance);
+    const duration = Date.now() - startTime; // Temps écoulé depuis l'appui
 
-    // LOGIQUE CRITIQUE :
-    // 1. Si mouvement < DEAD_ZONE (50px) => C'est un CLIC (Tap)
-    if (absDistance < DEAD_ZONE) {
-      if (t.isFixed) {
-        onToggleCheck(t); // Si c'est un flux récurrent, on pointe
-      } else {
-        onEdit(t); // Sinon on édite
-      }
-    } 
-    // 2. Si mouvement > SWIPE_THRESHOLD => C'est une ACTION (Swipe)
-    else if (rawDistance > SWIPE_THRESHOLD) {
+    // 1. GESTION DU SWIPE (Prioritaire)
+    // Si on a parcouru une grande distance, on s'en fiche du temps, c'est un swipe.
+    if (rawDistance > SWIPE_THRESHOLD) {
       onDuplicate(t);
     } 
     else if (rawDistance < -SWIPE_THRESHOLD) {
       onDelete(t.id);
     }
+    // 2. GESTION DU CLIC (Conditionnelle)
+    // C'est un clic SEULEMENT SI :
+    // - On n'a presque pas bougé (< 50px)
+    // - ET on a été rapide (< 300ms)
+    else if (absDistance < DEAD_ZONE && duration < MAX_CLICK_DURATION) {
+      if (t.isFixed) {
+        onToggleCheck(t);
+      } else {
+        onEdit(t);
+      }
+    }
+    // 3. SINON (Cas "Je me ravise")
+    // Si j'ai maintenu longtemps (>300ms) sans swiper assez loin, 
+    // il ne se passe RIEN. C'est l'annulation naturelle.
 
-    // Reset complet
+    // Reset
     setTouchStart(0);
     setTouchCurrent(0);
+    setStartTime(0);
     setActiveId(null);
   };
 
@@ -88,10 +97,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => {
         const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
-        
-        // C'est ici que la magie opère visuellement :
-        // Si le doigt n'a pas bougé de plus de DEAD_ZONE (50px), la carte reste à 0.
-        // Cela empêche le fond rouge d'apparaître quand on essaie juste de cliquer.
+        // Zone morte visuelle maintenue
         const distance = Math.abs(rawDistance) > DEAD_ZONE ? rawDistance : 0;
         
         const isDuplicating = distance > 0;
@@ -117,6 +123,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               onTouchStart={(e) => onTouchStart(e, t.id)}
               onTouchMove={onTouchMove}
               onTouchEnd={() => onTouchEnd(t)}
+              // On retire le onClick standard pour éviter les conflits
               style={{ 
                 transform: `translateX(${distance}px)`,
                 transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
