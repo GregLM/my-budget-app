@@ -12,16 +12,17 @@ interface TransactionListProps {
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(20);
   
-  // États pour la gestion du tactile et du temps
+  // États tactiles
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
-  const [startTime, setStartTime] = useState(0); // NOUVEAU : Pour mesurer la durée
+  const [startTime, setStartTime] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
+  
+  // NOUVEAU : On stocke si le doigt a atterri sur la Checkbox au départ
+  const [isHitboxTarget, setIsHitboxTarget] = useState(false);
 
-  // CONSTANTES DE SENSIBILITÉ
-  const SWIPE_THRESHOLD = 150; // Distance pour valider l'action
-  const DEAD_ZONE = 50;        // Zone morte visuelle
-  const MAX_CLICK_DURATION = 300; // NOUVEAU : Temps max en ms pour considérer un clic (300ms)
+  const SWIPE_THRESHOLD = 150; 
+  const DEAD_ZONE = 50;        
 
   const getPastelTag = (category: string) => {
     const name = category.toLowerCase();
@@ -47,8 +48,14 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     const startX = e.targetTouches[0].clientX;
     setTouchStart(startX);
     setTouchCurrent(startX);
-    setStartTime(Date.now()); // On lance le chrono
+    setStartTime(Date.now());
     setActiveId(id);
+
+    // DÉTECTION DE ZONE CRITIQUE
+    // On vérifie si l'élément touché (ou son parent) possède l'attribut data-role="checkbox-zone"
+    const target = e.target as HTMLElement;
+    const isCheckbox = !!target.closest('[data-role="checkbox-zone"]');
+    setIsHitboxTarget(isCheckbox);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
@@ -58,36 +65,35 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   const onTouchEnd = (t: any) => {
     const rawDistance = touchCurrent - touchStart;
     const absDistance = Math.abs(rawDistance);
-    const duration = Date.now() - startTime; // Temps écoulé depuis l'appui
+    const duration = Date.now() - startTime;
 
-    // 1. GESTION DU SWIPE (Prioritaire)
-    // Si on a parcouru une grande distance, on s'en fiche du temps, c'est un swipe.
+    // 1. GESTION DU SWIPE (Priorité absolue)
     if (rawDistance > SWIPE_THRESHOLD) {
       onDuplicate(t);
     } 
     else if (rawDistance < -SWIPE_THRESHOLD) {
       onDelete(t.id);
     }
-    // 2. GESTION DU CLIC (Conditionnelle)
-    // C'est un clic SEULEMENT SI :
-    // - On n'a presque pas bougé (< 50px)
-    // - ET on a été rapide (< 300ms)
-    else if (absDistance < DEAD_ZONE && duration < MAX_CLICK_DURATION) {
+    // 2. GESTION DU CLIC (Zone Restreinte)
+    else if (absDistance < DEAD_ZONE) {
       if (t.isFixed) {
-        onToggleCheck(t);
+        // Pour les flux FIXES : On ne pointe que si on a visé la Checkbox
+        if (isHitboxTarget) {
+          onToggleCheck(t);
+        }
+        // Sinon : ON NE FAIT RIEN (protection anti-missclick)
       } else {
+        // Pour les flux PASSÉS (non fixes) : On garde l'édition au clic partout
         onEdit(t);
       }
     }
-    // 3. SINON (Cas "Je me ravise")
-    // Si j'ai maintenu longtemps (>300ms) sans swiper assez loin, 
-    // il ne se passe RIEN. C'est l'annulation naturelle.
 
     // Reset
     setTouchStart(0);
     setTouchCurrent(0);
     setStartTime(0);
     setActiveId(null);
+    setIsHitboxTarget(false);
   };
 
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -97,7 +103,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => {
         const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
-        // Zone morte visuelle maintenue
         const distance = Math.abs(rawDistance) > DEAD_ZONE ? rawDistance : 0;
         
         const isDuplicating = distance > 0;
@@ -123,7 +128,6 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               onTouchStart={(e) => onTouchStart(e, t.id)}
               onTouchMove={onTouchMove}
               onTouchEnd={() => onTouchEnd(t)}
-              // On retire le onClick standard pour éviter les conflits
               style={{ 
                 transform: `translateX(${distance}px)`,
                 transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
@@ -133,7 +137,13 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
             >
               <div className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
                 {t.isFixed ? (
-                  <div className="shrink-0">
+                  // ZONE HITBOX DÉFINIE ICI
+                  // J'ai ajouté 'pointer-events-auto' pour que le wrapper capture bien l'événement
+                  // et du padding (-m-2 p-2) pour agrandir la zone tactile sans changer le visuel
+                  <div 
+                    data-role="checkbox-zone" 
+                    className="shrink-0 pointer-events-auto cursor-pointer p-3 -m-3 rounded-full"
+                  >
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
                 ) : (
