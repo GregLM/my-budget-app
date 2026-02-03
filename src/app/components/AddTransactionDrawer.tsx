@@ -1,50 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import { Drawer } from 'vaul';
 import { useForm } from 'react-hook-form';
-import { X, Trash2, Check, Delete, Calendar, Tag, Type } from 'lucide-react';
+import { Check, Delete, Calendar, Type, Trash2, X } from 'lucide-react';
 
 export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, onDelete, categories = [] }: any) {
   const { register, handleSubmit, reset, watch, setValue } = useForm();
   
-  // On gère le montant comme une simple chaîne de caractères (comme le simulateur)
   const [amountString, setAmountString] = useState('');
+  const [isTyping, setIsTyping] = useState(false); // État pour savoir si le clavier natif est ouvert
 
-  // Chargement des données (Mode Création ou Édition)
   useEffect(() => {
     if (open) {
       if (initialData) {
         reset({ ...initialData });
-        // On initialise le montant visuel
         setAmountString(Math.abs(initialData.amount).toString());
       } else {
         reset({ description: '', category: categories[0], type: 'expense', isFixed: false, date: new Date().toISOString().split('T')[0] });
         setAmountString('');
       }
+      setIsTyping(false);
     }
   }, [initialData, reset, open, categories]);
 
-  // Synchronisation : Quand la string change, on met à jour le formulaire caché
   useEffect(() => {
     const val = parseFloat(amountString || '0');
     setValue('amount', val);
   }, [amountString, setValue]);
 
   const onSubmit = (data: any) => {
-    // Sécurité : Si pas de montant, on bloque ou on met 0
     if (!amountString) return;
-    
     const finalAmount = parseFloat(amountString);
-    // Gestion du signe selon le type (Dépense = négatif)
     const signedAmount = data.type === 'expense' ? -Math.abs(finalAmount) : Math.abs(finalAmount);
-    
     onAdd({ ...data, amount: signedAmount });
     onOpenChange(false);
   };
 
-  // Logique du Pavé Numérique
   const handlePress = (val: string) => {
     if (val === '.' && amountString.includes('.')) return;
-    if (amountString.length > 8) return; // Limite de sécurité visuelle
+    if (amountString.length > 8) return;
     setAmountString(prev => prev + val);
   };
 
@@ -62,7 +55,7 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
           onPointerDownOutside={(e) => e.preventDefault()}>
           
           {/* HEADER & CONTENU SCROLLABLE */}
-          <div className="flex-1 overflow-y-auto p-5 pb-0">
+          <div className="flex-1 overflow-y-auto p-5 pb-2">
             <div className="mx-auto w-12 h-1.5 rounded-full bg-muted mb-6" />
             
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
@@ -73,7 +66,7 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                 <button type="button" onClick={() => setValue('type', 'income')} className={`flex-1 rounded-xl text-xs font-black uppercase transition-all ${type === 'income' ? 'bg-background shadow-sm text-emerald-500' : 'text-muted-foreground'}`}>Revenu</button>
               </div>
 
-              {/* 2. AFFICHAGE DU MONTANT (Pas d'input) */}
+              {/* 2. AFFICHAGE DU MONTANT */}
               <div className="flex flex-col items-center justify-center py-2">
                  <div className="flex items-end">
                     <span className={`text-6xl font-black tracking-tighter ${!amountString ? 'opacity-20' : 'opacity-100'} ${type === 'income' ? 'text-emerald-500' : 'text-foreground'}`}>
@@ -81,12 +74,11 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                     </span>
                     <span className={`text-3xl font-black mb-2 ml-1 ${type === 'income' ? 'text-emerald-500/50' : 'text-muted-foreground/50'}`}>€</span>
                  </div>
-                 {initialData?.id && <span className="text-[10px] font-bold uppercase text-blue-500 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded mt-2">Modification</span>}
               </div>
 
               {/* 3. CHAMPS TEXTE (Libellé & Date) */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-muted rounded-2xl p-3 flex items-center gap-2 border border-transparent focus-within:border-blue-500 transition-colors">
+                <div className={`bg-muted rounded-2xl p-3 flex items-center gap-2 border transition-colors ${isTyping ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-transparent'}`}>
                     <Type size={16} className="text-muted-foreground opacity-50" />
                     <input 
                         type="text" 
@@ -94,6 +86,8 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                         placeholder="Quoi ?" 
                         className="bg-transparent font-bold text-sm outline-none w-full placeholder:text-muted-foreground/50" 
                         autoComplete="off"
+                        onFocus={() => setIsTyping(true)} // CACHE LE PAVÉ
+                        onBlur={() => setIsTyping(false)} // AFFICHE LE PAVÉ
                     />
                 </div>
                 <div className="bg-muted rounded-2xl p-3 flex items-center gap-2">
@@ -112,7 +106,7 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                  <input type="checkbox" {...register('isFixed')} className="w-5 h-5 accent-blue-600 rounded" />
               </div>
 
-              {/* 5. CATÉGORIES (Grille compacte) */}
+              {/* 5. CATÉGORIES */}
               <div>
                 <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-2 block px-2">Catégorie</span>
                 <div className="grid grid-cols-4 gap-2">
@@ -128,46 +122,48 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                     ))}
                 </div>
               </div>
-
             </form>
           </div>
 
-          {/* ZONE CLAVIER FIXE EN BAS */}
-          <div className="p-5 pt-2 bg-background pb-8">
-            <div className="grid grid-cols-4 gap-3">
-                {/* Chiffres 1-9 */}
-                {[1, 2, 3].map(n => <NumBtn key={n} val={n} onClick={handlePress} />)}
-                <NumBtn val={4} onClick={handlePress} />
-                <NumBtn val={5} onClick={handlePress} />
-                <NumBtn val={6} onClick={handlePress} />
-                
-                {/* Bouton Supprimer (Rouge si suppression d'opération existante, sinon delete digit) */}
-                <div className="row-span-2 flex flex-col gap-3">
-                   <button onClick={handleDeleteDigit} className="flex-1 bg-muted rounded-2xl flex items-center justify-center active:scale-95 transition-all text-foreground"><Delete size={20}/></button>
-                   {initialData?.id ? (
-                     <button type="button" onClick={() => onDelete(initialData.id)} className="flex-1 bg-red-100 text-red-500 rounded-2xl flex items-center justify-center active:scale-95 transition-all"><Trash2 size={20}/></button>
-                   ) : (
-                     <div className="flex-1" /> // Espace vide si pas d'édition
-                   )}
+          {/* ZONE CLAVIER FIXE EN BAS (Masquée si on tape du texte) */}
+          {!isTyping && (
+            <div className="p-5 pt-2 bg-background pb-8 animate-in slide-in-from-bottom-10 fade-in duration-200">
+                <div className="grid grid-cols-4 gap-3 h-64">
+                    {/* Ligne 1 */}
+                    <NumBtn val={1} onClick={handlePress} />
+                    <NumBtn val={2} onClick={handlePress} />
+                    <NumBtn val={3} onClick={handlePress} />
+                    <button onClick={handleDeleteDigit} className="bg-muted rounded-2xl flex items-center justify-center active:scale-95 transition-all text-foreground"><Delete size={20}/></button>
+
+                    {/* Ligne 2 */}
+                    <NumBtn val={4} onClick={handlePress} />
+                    <NumBtn val={5} onClick={handlePress} />
+                    <NumBtn val={6} onClick={handlePress} />
+                    {initialData?.id ? (
+                        <button type="button" onClick={() => onDelete(initialData.id)} className="bg-red-100 text-red-500 rounded-2xl flex items-center justify-center active:scale-95 transition-all"><Trash2 size={20}/></button>
+                    ) : (
+                        <div /> 
+                    )}
+
+                    {/* Ligne 3 et 4 imbriquées pour le bouton valider double hauteur */}
+                    <NumBtn val={7} onClick={handlePress} />
+                    <NumBtn val={8} onClick={handlePress} />
+                    <NumBtn val={9} onClick={handlePress} />
+                    
+                    {/* Bouton Valider qui prend 2 lignes (row-span-2) */}
+                    <button 
+                        onClick={handleSubmit(onSubmit)} 
+                        disabled={!amountString}
+                        className={`row-span-2 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 ${!amountString ? 'bg-muted text-muted-foreground' : 'bg-blue-600 text-white shadow-blue-500/30'}`}
+                    >
+                        <Check size={32} strokeWidth={3} />
+                    </button>
+
+                    <NumBtn val={'.'} onClick={handlePress} />
+                    <NumBtn val={0} onClick={handlePress} />
                 </div>
-
-                <NumBtn val={7} onClick={handlePress} />
-                <NumBtn val={8} onClick={handlePress} />
-                <NumBtn val={9} onClick={handlePress} />
-
-                <NumBtn val={'.'} onClick={handlePress} />
-                <NumBtn val={0} onClick={handlePress} />
-                
-                {/* GROS BOUTON VALIDER (Vert) */}
-                <button 
-                    onClick={handleSubmit(onSubmit)} 
-                    disabled={!amountString}
-                    className={`rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90 ${!amountString ? 'bg-muted text-muted-foreground' : 'bg-blue-600 text-white shadow-blue-500/30'}`}
-                >
-                    <Check size={28} strokeWidth={3} />
-                </button>
             </div>
-          </div>
+          )}
 
         </Drawer.Content>
       </Drawer.Portal>
@@ -175,13 +171,12 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
   );
 }
 
-// Petit composant helper pour les boutons chiffres
 function NumBtn({ val, onClick }: { val: number | string, onClick: (v: string) => void }) {
     return (
         <button 
             type="button"
             onClick={() => onClick(val.toString())}
-            className="h-14 bg-muted/50 hover:bg-muted rounded-2xl font-black text-xl text-foreground flex items-center justify-center active:scale-95 transition-all"
+            className="h-full bg-muted/50 hover:bg-muted rounded-2xl font-black text-2xl text-foreground flex items-center justify-center active:scale-95 transition-all"
         >
             {val}
         </button>
