@@ -13,17 +13,15 @@ interface TransactionListProps {
 export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete, onDuplicate, onCategoryClick }: TransactionListProps) {
   const [displayCount, setDisplayCount] = useState(20);
   
-  // États visuels pour le Swipe
+  // États Swipe
   const [touchStart, setTouchStart] = useState(0);
   const [touchCurrent, setTouchCurrent] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   
-  // VERROU ANTI-CONFLIT (Swipe vs Clic)
-  // Permet de savoir si un mouvement a eu lieu pour bloquer le clic si nécessaire
+  // Verrou Swipe vs Clic
   const isSwiping = useRef(false);
 
   const SWIPE_THRESHOLD = 150; 
-  const DEAD_ZONE = 50;        
 
   const getPastelTag = (category: string) => {
     const name = category.toLowerCase();
@@ -49,15 +47,12 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     setTouchStart(e.targetTouches[0].clientX);
     setTouchCurrent(e.targetTouches[0].clientX);
     setActiveId(id);
-    isSwiping.current = false; // On réinitialise : pour l'instant c'est un tap
+    isSwiping.current = false;
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
     const current = e.targetTouches[0].clientX;
     setTouchCurrent(current);
-    
-    // Si on bouge de plus de 10px, on considère que c'est un début de swipe
-    // Cela permettra de bloquer le clic à la fin
     if (Math.abs(current - touchStart) > 10) {
       isSwiping.current = true;
     }
@@ -65,31 +60,26 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
   const onTouchEnd = (t: any) => {
     const rawDistance = touchCurrent - touchStart;
-
-    // Gestion de l'action SWIPE (Suppression / Duplication)
+    
+    // Action Swipe uniquement si mouvement ample
     if (Math.abs(rawDistance) > SWIPE_THRESHOLD) {
       if (rawDistance > 0) onDuplicate(t);
       else onDelete(t.id);
     }
 
-    // Reset des états visuels
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);
     
-    // On laisse le flag isSwiping à sa valeur pendant quelques millisecondes
-    // pour que l'événement onClick (qui suit le onTouchEnd) puisse le lire et s'annuler
-    setTimeout(() => {
-        isSwiping.current = false;
-    }, 100);
+    // Petit délai pour laisser les clics s'annuler si besoin
+    setTimeout(() => { isSwiping.current = false; }, 100);
   };
 
-  // Helper pour gérer les clics en sécurité (Web & Mobile)
+  // Wrapper sécurisé pour les clics
   const handleSafeClick = (e: React.MouseEvent, action: () => void) => {
-      e.stopPropagation();
-      // Si on était en train de swiper, on ignore le clic
-      if (isSwiping.current) return;
-      action();
+    e.stopPropagation();
+    if (isSwiping.current) return;
+    action();
   };
 
   const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -99,7 +89,8 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => {
         const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
-        const distance = Math.abs(rawDistance) > DEAD_ZONE ? rawDistance : 0;
+        const distance = isSwiping.current ? rawDistance : 0; // On ne bouge que si on swipe vraiment
+        
         const isDuplicating = distance > 0;
         const isDeleting = distance < 0;
         const absDistance = Math.abs(distance);
@@ -108,14 +99,9 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
         return (
           <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
             {/* Background Actions */}
-            <div 
-              className={`absolute inset-0 flex items-center px-6 transition-colors ${
-                isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''
-              }`}
-              style={{ opacity }}
-            >
-              {isDuplicating && <Copy className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
-              {isDeleting && <Trash2 className="text-white" size={24} style={{ transform: `scale(${Math.min(0.5 + absDistance/200, 1.2)})` }} />}
+            <div className={`absolute inset-0 flex items-center px-6 transition-colors ${isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''}`} style={{ opacity }}>
+              {isDuplicating && <Copy className="text-white" size={24} />}
+              {isDeleting && <Trash2 className="text-white" size={24} />}
             </div>
 
             {/* Carte Principale */}
@@ -123,20 +109,13 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
               onTouchStart={(e) => onTouchStart(e, t.id)}
               onTouchMove={onTouchMove}
               onTouchEnd={() => onTouchEnd(t)}
-              style={{ 
-                transform: `translateX(${distance}px)`,
-                transition: activeId === t.id ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
-              }}
-              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] 
-                ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
+              style={{ transform: `translateX(${distance}px)`, transition: activeId === t.id ? 'none' : 'transform 0.3s' }}
+              className={`flex items-center justify-between p-4 bg-card border transition-all relative z-10 rounded-[24px] ${t.isFixed && !t.isCleared ? 'border-dashed border-blue-400 bg-blue-500/5' : 'border-border'}`}
             >
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 {t.isFixed ? (
-                  // ZONE CHECKBOX (Clic via onClick sécurisé)
-                  <div 
-                    onClick={(e) => handleSafeClick(e, () => onToggleCheck(t))}
-                    className="shrink-0 cursor-pointer p-3 -m-3 rounded-full hover:bg-muted/50 transition-colors"
-                  >
+                  // ZONE CHECKBOX (Gauche)
+                  <div onClick={(e) => handleSafeClick(e, () => onToggleCheck(t))} className="shrink-0 cursor-pointer p-3 -m-3">
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
                 ) : (
@@ -145,34 +124,21 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                   </div>
                 )}
                 
-                {/* ZONE CENTRE : Texte + Tag */}
-                <div className="flex flex-col min-w-0 pointer-events-none">
-                  <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                    {t.description || "Sans description"}
-                  </span>
-                  <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
-                    {/* TAG CATÉGORIE (Clic via onClick sécurisé) */}
-                    <button 
-                      type="button"
-                      onClick={(e) => handleSafeClick(e, () => onCategoryClick && t.category && onCategoryClick(t.category))}
-                      // Pour permettre le swipe même en commençant sur le bouton
-                      onTouchStart={(e) => e.stopPropagation()} 
-                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}
-                    >
+                {/* ZONE CENTRE (Texte) : Clic ne fait rien (ou on pourrait mettre Edit ici aussi) */}
+                <div className="flex flex-col min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{t.description || "Sans description"}</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {/* TAG CATÉGORIE (Filtre) */}
+                    <button type="button" onClick={(e) => handleSafeClick(e, () => onCategoryClick && t.category && onCategoryClick(t.category))} onTouchStart={(e) => e.stopPropagation()} className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}>
                       {t.category || "Général"}
                     </button>
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                       {t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}
-                    </span>
+                    <span className="text-[10px] text-muted-foreground font-medium">{t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}</span>
                   </div>
                 </div>
               </div>
 
-              {/* ZONE MONTANT (Clic via onClick sécurisé) */}
-              <div 
-                onClick={(e) => handleSafeClick(e, () => onEdit(t))}
-                className={`font-black text-sm whitespace-nowrap ml-3 cursor-pointer p-2 -m-2 hover:opacity-70 transition-opacity ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}
-              >
+              {/* ZONE MONTANT (Droite) : Edit */}
+              <div onClick={(e) => handleSafeClick(e, () => onEdit(t))} className={`font-black text-sm whitespace-nowrap ml-3 cursor-pointer p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
                 {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
               </div>
             </div>
@@ -180,9 +146,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
         );
       })}
       {transactions.length > displayCount && (
-        <button onClick={() => setDisplayCount(prev => prev + 15)} className="mt-2 py-4 w-full text-blue-600 font-black text-[10px] uppercase tracking-widest italic">
-          Afficher plus de mouvements...
-        </button>
+        <button onClick={() => setDisplayCount(prev => prev + 15)} className="mt-2 py-4 w-full text-blue-600 font-black text-[10px] uppercase tracking-widest italic">Afficher plus de mouvements...</button>
       )}
     </div>
   );
