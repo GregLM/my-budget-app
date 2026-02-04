@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Home, PieChart, Settings, Wallet, Target, Hourglass, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Plus, Home, PieChart, Settings, Wallet, Target, Hourglass, Trash2, Download, Upload } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { BalanceCard } from '@/app/components/BalanceCard';
 import { CategoryChart } from '@/app/components/CategoryChart';
@@ -33,6 +33,9 @@ export default function App() {
     { id: '11', name: 'Enfant', amount: "1400" },
     { id: '12', name: 'Revenus', amount: "1097.83" }
   ]);
+
+  // Référence pour l'input de fichier caché (Import)
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('eco_budget_final');
@@ -135,19 +138,16 @@ export default function App() {
 
   const handleDelete = (id: string) => setTransactions(prev => prev.filter(t => t.id !== id));
 
-  // CORRECTION : Cette fonction ouvre maintenant le drawer pour modifier
   const handleEdit = (t: any) => {
     setEditingItem(t);
     setIsDrawerOpen(true);
   };
 
-  // Nouvelle fonction pour Dupliquer (Swipe Droite -> Edit, mais je garde la fonction au cas où)
   const handleDuplicate = (t: any) => {
     setEditingItem({ ...t, id: undefined, isCleared: false, date: new Date().toISOString().split('T')[0] });
     setIsDrawerOpen(true);
   };
 
-  // Fonction Clôture M+1
   const addOneMonth = (dateStr: string) => {
     const d = new Date(dateStr);
     d.setMonth(d.getMonth() + 1);
@@ -171,6 +171,48 @@ export default function App() {
     setTransactions(nextMonthTransactions);
     setActiveTab('dashboard');
   };
+
+  // --- FONCTIONS DE SAUVEGARDE ---
+  const handleExport = () => {
+    const dataStr = JSON.stringify({ transactions, startingBalance, envelopes, isDark, alertThreshold }, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_eco_budget_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        if (json.transactions && json.envelopes) {
+            if(window.confirm("Attention : Importer une sauvegarde écrasera toutes les données actuelles. Continuer ?")) {
+                setTransactions(json.transactions);
+                setStartingBalance(json.startingBalance);
+                setEnvelopes(json.envelopes);
+                setIsDark(json.isDark || false);
+                setAlertThreshold(json.alertThreshold || 100);
+                alert("Données restaurées avec succès !");
+            }
+        } else {
+            alert("Format de fichier invalide.");
+        }
+      } catch (error) {
+        alert("Erreur lors de la lecture du fichier.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input pour pouvoir réimporter le même fichier si besoin
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
   
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
@@ -192,7 +234,6 @@ export default function App() {
                   <Hourglass size={14} className="text-blue-500" />
                   <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Mouvements à venir ({stats.upcomingTransactions.length})</h3>
                 </div>
-                {/* CORRECTION : onEdit appelle maintenant handleEdit qui ouvre le drawer */}
                 <TransactionList 
                   transactions={stats.upcomingTransactions} 
                   onEdit={handleEdit} 
@@ -206,7 +247,6 @@ export default function App() {
             )}
 
             <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">Derniers flux</h3>
-            {/* CORRECTION ICI AUSSI */}
             <TransactionList 
                 transactions={transactions.filter(t => !t.isFixed || t.isCleared)} 
                 onEdit={handleEdit} 
@@ -258,6 +298,24 @@ export default function App() {
                <button onClick={() => setEnvelopes([...envelopes, { id: uuidv4(), name: 'Nouveau', amount: '0' }])} className="w-full py-4 rounded-2xl border-2 border-dashed border-border text-muted-foreground font-black uppercase text-xs">Ajouter une catégorie</button>
             </div>
 
+            {/* ZONE DE SAUVEGARDE */}
+            <div className="pt-4">
+                <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-2 mb-3">Sauvegarde & Données</h3>
+                <div className="flex gap-3">
+                    <button onClick={handleExport} className="flex-1 py-4 rounded-[24px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-bold text-xs uppercase tracking-wider flex flex-col items-center gap-2 active:scale-95 transition-all">
+                        <Download size={20} />
+                        Exporter
+                    </button>
+                    <button onClick={() => fileInputRef.current?.click()} className="flex-1 py-4 rounded-[24px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 font-bold text-xs uppercase tracking-wider flex flex-col items-center gap-2 active:scale-95 transition-all">
+                        <Upload size={20} />
+                        Importer
+                    </button>
+                    {/* Input caché pour l'upload */}
+                    <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
+                </div>
+            </div>
+
+            {/* ZONE DANGER */}
             <div className="pt-8 pb-4">
               <div className="h-px bg-border mb-8" />
               <button 
