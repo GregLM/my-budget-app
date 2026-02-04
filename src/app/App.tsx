@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Home, PieChart, Settings, Wallet, Target, Hourglass } from 'lucide-react';
+import { Plus, Home, PieChart, Settings, Wallet, Target, Hourglass, Trash2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { BalanceCard } from '@/app/components/BalanceCard';
 import { CategoryChart } from '@/app/components/CategoryChart';
