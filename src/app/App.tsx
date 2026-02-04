@@ -7,7 +7,7 @@ import { TransactionList } from '@/app/components/TransactionList';
 import { AddTransactionDrawer } from '@/app/components/AddTransactionDrawer';
 import { CategoryDetailsDrawer } from '@/app/components/CategoryDetailsDrawer';
 import { SimulatorDrawer } from '@/app/components/SimulatorDrawer';
-import { getCategoryStyle } from '@/app/utils/categories';
+import { getCategoryStyle } from '@/app/utils/categories'; // Import des couleurs
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -35,7 +35,6 @@ export default function App() {
     { id: '12', name: 'Revenus', amount: "1097.83" }
   ]);
 
-  // Référence pour l'input de fichier caché (Import)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,7 +57,6 @@ export default function App() {
   const stats = useMemo(() => {
     const parse = (v: any) => parseFloat(v?.toString().replace(/\s/g, '').replace(',', '.') || "0") || 0;
     
-    // FONCTION DE SÉCURITÉ MATHÉMATIQUE
     const getAmount = (t: any) => {
        const val = parse(t.amount);
        return t.type === 'expense' ? -Math.abs(val) : Math.abs(val);
@@ -103,19 +101,20 @@ export default function App() {
     // 5. Atterrissage Réel
     const forecastReal = currentBal + totalPending;
 
-    // Graph
+    // Graphique (Camembert) avec couleurs harmonisées
     const expensesList = clearedTransactions.filter(t => t.type === 'expense');
     const incomeList = clearedTransactions.filter(t => t.type === 'income');
 
     const chartData = Object.entries(expensesList.reduce((acc: any, t) => { 
-      const cat = t.category || 'Autre';
-      acc[cat] = (acc[cat] || 0) + Math.abs(getAmount(t)); 
-      return acc; 
-    }, {})).map(([name, value]) => ({ 
-      name, 
-      value: Number(value), 
-      color: getCategoryStyle(name).color 
-    })).sort((a, b) => b.value - a.value);
+        const cat = t.category || 'Autre';
+        acc[cat] = (acc[cat] || 0) + Math.abs(getAmount(t)); 
+        return acc; 
+      }, {})).map(([name, value]) => ({ 
+        name, 
+        value: Number(value), 
+        // UTILISATION DE LA COULEUR OFFICIELLE
+        color: getCategoryStyle(name).color 
+      })).sort((a, b) => b.value - a.value);
 
     return { 
       balance: currentBal,
@@ -175,7 +174,6 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  // --- FONCTIONS DE SAUVEGARDE ---
   const handleExport = () => {
     const dataStr = JSON.stringify({ transactions, startingBalance, envelopes, isDark, alertThreshold }, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -213,7 +211,6 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-    // Reset input pour pouvoir réimporter le même fichier si besoin
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   
@@ -261,15 +258,33 @@ export default function App() {
           </div>
         )}
 
+        {/* ONGLET ANALYSES MIS A JOUR AVEC LES COULEURS */}
         {activeTab === 'stats' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-black italic uppercase">Analyses</h2>
-            {stats.envs.map(s => (
-              <div key={s.id} className="bg-card p-6 rounded-[32px] border border-border space-y-3">
-                <div className="flex justify-between font-black uppercase text-sm"><span>{s.name} {s.isRev && "🟢"}</span><span>{Math.abs(s.real).toFixed(0)}€ / {s.target}€</span></div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden"><div className={`h-full ${s.isRev ? 'bg-emerald-500' : 'bg-blue-600'}`} style={{ width: `${Math.min(s.pct, 100)}%` }} /></div>
-              </div>
-            ))}
+            {stats.envs.map(s => {
+               // Récupération de la couleur harmonisée
+               const style = getCategoryStyle(s.name);
+               return (
+                  <div key={s.id} className="bg-card p-6 rounded-[32px] border border-border space-y-3">
+                    <div className="flex justify-between font-black uppercase text-sm">
+                        <span className="flex items-center gap-2">
+                            {/* Pastille de couleur */}
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
+                            {s.name}
+                        </span>
+                        <span>{Math.abs(s.real).toFixed(0)}€ / {s.target}€</span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                        {/* Barre de progression colorée */}
+                        <div 
+                            className="h-full transition-all duration-500" 
+                            style={{ width: `${Math.min(s.pct, 100)}%`, backgroundColor: style.color }} 
+                        />
+                    </div>
+                  </div>
+               );
+            })}
           </div>
         )}
 
@@ -289,7 +304,6 @@ export default function App() {
               <input type="number" value={alertThreshold} onChange={e => setAlertThreshold(Number(e.target.value))} className="w-full bg-muted p-4 rounded-2xl font-black text-2xl outline-none" />
             </div>
 
-            {/* LISTE DES ENVELOPPES / CATÉGORIES */}
             <div className="space-y-3">
                <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-2">Budgets Mensuels</h3>
                {envelopes.map((env, i) => (
@@ -301,7 +315,6 @@ export default function App() {
                <button onClick={() => setEnvelopes([...envelopes, { id: uuidv4(), name: 'Nouveau', amount: '0' }])} className="w-full py-4 rounded-2xl border-2 border-dashed border-border text-muted-foreground font-black uppercase text-xs">Ajouter une catégorie</button>
             </div>
 
-            {/* ZONE DE SAUVEGARDE */}
             <div className="pt-4">
                 <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-2 mb-3">Sauvegarde & Données</h3>
                 <div className="flex gap-3">
@@ -313,12 +326,10 @@ export default function App() {
                         <Upload size={20} />
                         Importer
                     </button>
-                    {/* Input caché pour l'upload */}
                     <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
                 </div>
             </div>
 
-            {/* ZONE DANGER */}
             <div className="pt-8 pb-4">
               <div className="h-px bg-border mb-8" />
               <button 
