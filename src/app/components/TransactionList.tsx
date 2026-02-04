@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { CheckCircle2, Circle, Trash2, Copy } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Pencil } from 'lucide-react'; // Import Pencil pour l'édition
 
 interface TransactionListProps {
   transactions: any[];
@@ -61,21 +61,23 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
   const onTouchEnd = (t: any) => {
     const rawDistance = touchCurrent - touchStart;
     
-    // Action Swipe uniquement si mouvement ample
+    // Action Swipe uniquement si mouvement ample (> 150px)
     if (Math.abs(rawDistance) > SWIPE_THRESHOLD) {
-      if (rawDistance > 0) onDuplicate(t);
-      else onDelete(t.id);
+      if (rawDistance > 0) {
+        // SWIPE DROITE -> ÉDITION (Remplace duplication)
+        onEdit(t);
+      } else {
+        // SWIPE GAUCHE -> SUPPRESSION
+        onDelete(t.id);
+      }
     }
 
     setTouchStart(0);
     setTouchCurrent(0);
     setActiveId(null);
-    
-    // Petit délai pour laisser les clics s'annuler si besoin
     setTimeout(() => { isSwiping.current = false; }, 100);
   };
 
-  // Wrapper sécurisé pour les clics
   const handleSafeClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation();
     if (isSwiping.current) return;
@@ -89,9 +91,11 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     <div className="flex flex-col gap-3 pb-10">
       {visible.map((t) => {
         const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
-        const distance = isSwiping.current ? rawDistance : 0; // On ne bouge que si on swipe vraiment
+        const distance = isSwiping.current ? rawDistance : 0;
         
-        const isDuplicating = distance > 0;
+        // Swipe Droite (>0) = Édition (Bleu)
+        // Swipe Gauche (<0) = Suppression (Rouge)
+        const isEditing = distance > 0;
         const isDeleting = distance < 0;
         const absDistance = Math.abs(distance);
         const opacity = Math.min(absDistance / 100, 1);
@@ -99,8 +103,8 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
         return (
           <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
             {/* Background Actions */}
-            <div className={`absolute inset-0 flex items-center px-6 transition-colors ${isDuplicating ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''}`} style={{ opacity }}>
-              {isDuplicating && <Copy className="text-white" size={24} />}
+            <div className={`absolute inset-0 flex items-center px-6 transition-colors ${isEditing ? 'bg-blue-600 justify-start' : isDeleting ? 'bg-red-600 justify-end' : ''}`} style={{ opacity }}>
+              {isEditing && <Pencil className="text-white" size={24} />}
               {isDeleting && <Trash2 className="text-white" size={24} />}
             </div>
 
@@ -114,7 +118,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
             >
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 {t.isFixed ? (
-                  // ZONE CHECKBOX (Gauche)
+                  // ZONE CHECKBOX (Gauche) - Pointage
                   <div onClick={(e) => handleSafeClick(e, () => onToggleCheck(t))} className="shrink-0 cursor-pointer p-3 -m-3">
                     {t.isCleared ? <CheckCircle2 className="text-emerald-500" size={26} /> : <Circle className="text-muted-foreground/30" size={26} />}
                   </div>
@@ -124,7 +128,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                   </div>
                 )}
                 
-                {/* ZONE CENTRE (Texte) : Clic ne fait rien (ou on pourrait mettre Edit ici aussi) */}
+                {/* ZONE CENTRE (Texte) */}
                 <div className="flex flex-col min-w-0" onClick={(e) => e.stopPropagation()}>
                   <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{t.description || "Sans description"}</span>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -137,8 +141,8 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 </div>
               </div>
 
-              {/* ZONE MONTANT (Droite) : Edit */}
-              <div onClick={(e) => handleSafeClick(e, () => onEdit(t))} className={`font-black text-sm whitespace-nowrap ml-3 cursor-pointer p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
+              {/* ZONE MONTANT (Droite) : Plus d'action au clic, tout est dans le Swipe */}
+              <div className={`font-black text-sm whitespace-nowrap ml-3 p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
                 {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
               </div>
             </div>

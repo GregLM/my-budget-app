@@ -18,10 +18,14 @@ export function CategoryDetailsDrawer({ category, isOpen, onClose, transactions,
   // Filtrer uniquement si une catégorie est sélectionnée
   const filtered = category ? transactions.filter((t: any) => t.category === category) : [];
   
-  // Calcul du total (Revenus - Dépenses)
+  // CORRECTION MATHÉMATIQUE ROBUSTE
+  // On ignore le signe stocké en base, on recalcul proprement selon le type.
   const total = filtered.reduce((acc: number, t: any) => {
-    const amt = parseFloat(t.amount);
-    return t.type === 'income' ? acc + amt : acc - amt;
+    const rawVal = parseFloat(t.amount);
+    const absVal = Math.abs(rawVal); // On prend toujours la valeur positive (ex: |-20| = 20)
+    
+    // Si c'est un revenu, on ajoute. Si c'est une dépense, on soustrait.
+    return t.type === 'income' ? acc + absVal : acc - absVal;
   }, 0);
 
   return (
@@ -45,6 +49,7 @@ export function CategoryDetailsDrawer({ category, isOpen, onClose, transactions,
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Bilan Période</p>
+                {/* Couleur dynamique selon si le solde est positif ou négatif */}
                 <p className={`text-3xl font-black ${total >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {total.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                 </p>
@@ -60,9 +65,8 @@ export function CategoryDetailsDrawer({ category, isOpen, onClose, transactions,
                 onDelete={onDelete}
                 onDuplicate={onDuplicate}
                 onToggleCheck={onToggleCheck}
-                // Pas de onCategoryClick ici pour éviter la récursion
              />
-             <div className="h-20" /> {/* Espace pour le bas */}
+             <div className="h-20" />
           </div>
         </Drawer.Content>
       </Drawer.Portal>
