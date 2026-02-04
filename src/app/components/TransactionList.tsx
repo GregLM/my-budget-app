@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { CheckCircle2, Circle, Trash2, Pencil } from 'lucide-react'; // Import Pencil pour l'édition
+import { CheckCircle2, Circle, Trash2, Pencil } from 'lucide-react';
+import { getCategoryStyle } from '@/app/utils/categories'; // Ton nouveau fichier de styles
 
 interface TransactionListProps {
   transactions: any[];
@@ -23,25 +24,8 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
 
   const SWIPE_THRESHOLD = 150; 
 
-  const getPastelTag = (category: string) => {
-    const name = category.toLowerCase();
-    const pastels: Record<string, string> = {
-      'emprunt': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-      'alim': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-      'abo': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-      'energie': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-      'transport': 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
-      'loisir': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
-      'epargne': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-      'impot': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-      'santé': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
-      'assurance': 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      'enfant': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-      'revenu': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    };
-    const match = Object.keys(pastels).find(key => name.includes(key));
-    return match ? pastels[match] : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
-  };
+  // NOTE : J'ai supprimé l'ancienne fonction getPastelTag ici
+  // car nous utilisons désormais getCategoryStyle importé plus haut.
 
   const onTouchStart = (e: React.TouchEvent, id: string) => {
     setTouchStart(e.targetTouches[0].clientX);
@@ -64,7 +48,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
     // Action Swipe uniquement si mouvement ample (> 150px)
     if (Math.abs(rawDistance) > SWIPE_THRESHOLD) {
       if (rawDistance > 0) {
-        // SWIPE DROITE -> ÉDITION (Remplace duplication)
+        // SWIPE DROITE -> ÉDITION
         onEdit(t);
       } else {
         // SWIPE GAUCHE -> SUPPRESSION
@@ -93,12 +77,13 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
         const rawDistance = activeId === t.id ? touchCurrent - touchStart : 0;
         const distance = isSwiping.current ? rawDistance : 0;
         
-        // Swipe Droite (>0) = Édition (Bleu)
-        // Swipe Gauche (<0) = Suppression (Rouge)
         const isEditing = distance > 0;
         const isDeleting = distance < 0;
         const absDistance = Math.abs(distance);
         const opacity = Math.min(absDistance / 100, 1);
+
+        // RÉCUPÉRATION DU STYLE HARMONISÉ
+        const style = getCategoryStyle(t.category || '');
 
         return (
           <div key={t.id} className="relative overflow-hidden rounded-[24px] bg-slate-100 dark:bg-slate-900 select-none">
@@ -132,8 +117,13 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 <div className="flex flex-col min-w-0" onClick={(e) => e.stopPropagation()}>
                   <span className={`text-sm font-bold truncate ${t.isCleared ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{t.description || "Sans description"}</span>
                   <div className="flex items-center gap-2 mt-0.5">
-                    {/* TAG CATÉGORIE (Filtre) */}
-                    <button type="button" onClick={(e) => handleSafeClick(e, () => onCategoryClick && t.category && onCategoryClick(t.category))} onTouchStart={(e) => e.stopPropagation()} className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${getPastelTag(t.category || '')} active:scale-95 transition-transform`}>
+                    {/* TAG CATÉGORIE (Filtre) AVEC NOUVEAUX STYLES */}
+                    <button 
+                        type="button" 
+                        onClick={(e) => handleSafeClick(e, () => onCategoryClick && t.category && onCategoryClick(t.category))} 
+                        onTouchStart={(e) => e.stopPropagation()} 
+                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-tighter shrink-0 ${style.bg} ${style.text} active:scale-95 transition-transform`}
+                    >
                       {t.category || "Général"}
                     </button>
                     <span className="text-[10px] text-muted-foreground font-medium">{t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''}</span>
@@ -141,7 +131,7 @@ export function TransactionList({ transactions, onEdit, onToggleCheck, onDelete,
                 </div>
               </div>
 
-              {/* ZONE MONTANT (Droite) : Plus d'action au clic, tout est dans le Swipe */}
+              {/* ZONE MONTANT (Droite) */}
               <div className={`font-black text-sm whitespace-nowrap ml-3 p-2 -m-2 ${t.type === 'income' ? 'text-emerald-600' : 'text-foreground'}`}>
                 {t.type === 'income' ? '+' : '-'}{Math.abs(Number(t.amount)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
               </div>

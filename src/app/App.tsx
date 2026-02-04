@@ -7,6 +7,7 @@ import { TransactionList } from '@/app/components/TransactionList';
 import { AddTransactionDrawer } from '@/app/components/AddTransactionDrawer';
 import { CategoryDetailsDrawer } from '@/app/components/CategoryDetailsDrawer';
 import { SimulatorDrawer } from '@/app/components/SimulatorDrawer';
+import { getCategoryStyle } from '@/app/utils/categories';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -107,12 +108,14 @@ export default function App() {
     const incomeList = clearedTransactions.filter(t => t.type === 'income');
 
     const chartData = Object.entries(expensesList.reduce((acc: any, t) => { 
-        const cat = t.category || 'Autre';
-        acc[cat] = (acc[cat] || 0) + Math.abs(getAmount(t)); 
-        return acc; 
-      }, {})).map(([name, value], i) => ({ 
-        name, value: Number(value), color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'][i % 7] 
-      })).sort((a, b) => b.value - a.value);
+      const cat = t.category || 'Autre';
+      acc[cat] = (acc[cat] || 0) + Math.abs(getAmount(t)); 
+      return acc; 
+    }, {})).map(([name, value]) => ({ 
+      name, 
+      value: Number(value), 
+      color: getCategoryStyle(name).color 
+    })).sort((a, b) => b.value - a.value);
 
     return { 
       balance: currentBal,
