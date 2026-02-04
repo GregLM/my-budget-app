@@ -55,66 +55,51 @@ export default function App() {
     const parse = (v: any) => parseFloat(v?.toString().replace(/\s/g, '').replace(',', '.') || "0") || 0;
     
     // FONCTION DE SÉCURITÉ MATHÉMATIQUE
-    // Elle garantit que : Dépense = Négatif, Revenu = Positif.
     const getAmount = (t: any) => {
        const val = parse(t.amount);
-       // Si c'est une dépense, on renvoie -Abs(valeur), sinon Abs(valeur)
        return t.type === 'expense' ? -Math.abs(val) : Math.abs(val);
     };
 
     const balInit = parse(startingBalance);
     
-    // 1. Solde Actuel : Solde Départ + Toutes les transactions pointées (passées)
-    // On fait une simple SOMME car getAmount gère le signe négatif des dépenses
+    // 1. Solde Actuel
     const clearedTransactions = transactions.filter(t => !t.isFixed || t.isCleared);
     const totalCleared = clearedTransactions.reduce((acc, t) => acc + getAmount(t), 0);
-    
     const currentBal = balInit + totalCleared;
 
-    // 2. Reste à venir (Fixe non pointé)
+    // 2. Reste à venir
     const pendingFixed = transactions.filter(t => t.isFixed && !t.isCleared);
     const totalPending = pendingFixed.reduce((acc, t) => acc + getAmount(t), 0);
 
-    // 3. Budgets restants (Enveloppes)
+    // 3. Budgets restants
     const envs = envelopes.map(e => {
-      // On calcule ce qui a déjà été dépensé/gagné dans cette catégorie
       const actual = transactions
         .filter(t => t.category === e.name)
         .reduce((acc, t) => acc + getAmount(t), 0);
       
-      const target = parse(e.amount); // Le budget prévu (ex: 600)
-      
-      // Calcul du reste à faire (Target - Ce qui est fait)
-      // Attention : pour les dépenses, "actual" est négatif. 
-      // Si Budget=600 et Dépense=-100. Reste = 600 - 100 = 500.
-      // Si Budget=Revenu=2000 et Reçu=1500. Reste = 2000 - 1500 = 500.
-      
+      const target = parse(e.amount);
       const isRev = e.name.toLowerCase().includes('revenu') || (e.type === 'income');
       
       let rem = 0;
       if (isRev) {
-         // Pour un revenu : Reste = Objectif - Reçu
          rem = Math.max(0, target - actual);
       } else {
-         // Pour une dépense : Reste = Objectif - |Dépensé|
          rem = Math.max(0, target - Math.abs(actual));
       }
 
       return { ...e, real: actual, rem, isRev, target, pct: target > 0 ? (Math.abs(actual) / target) * 100 : 0 };
     });
 
-    // On calcule le poids financier de ce qu'il reste à dépenser dans les enveloppes
     const totalRemBudgetExpenses = envs.filter(e => !e.isRev).reduce((acc, e) => acc + e.rem, 0);
     const totalRemBudgetIncome = envs.filter(e => e.isRev).reduce((acc, e) => acc + e.rem, 0);
 
     // 4. Atterrissage Prévu
-    // = Solde Actuel + (Flux fixes à venir) - (Budgets variables restants à dépenser) + (Budgets revenus restants à recevoir)
     const forecastTarget = currentBal + totalPending - totalRemBudgetExpenses + totalRemBudgetIncome;
     
-    // 5. Atterrissage Réel (Basé uniquement sur ce qu'on sait : Solde + Flux fixes futurs connus)
+    // 5. Atterrissage Réel
     const forecastReal = currentBal + totalPending;
 
-    // Données pour le graph (Dépenses pointées uniquement)
+    // Graph
     const expensesList = clearedTransactions.filter(t => t.type === 'expense');
     const incomeList = clearedTransactions.filter(t => t.type === 'income');
 
@@ -132,7 +117,7 @@ export default function App() {
       forecastTarget,
       envs,
       income: incomeList.reduce((acc, t) => acc + getAmount(t), 0),
-      expenses: Math.abs(expensesList.reduce((acc, t) => acc + getAmount(t), 0)), // On renvoie la valeur absolue pour l'affichage
+      expenses: Math.abs(expensesList.reduce((acc, t) => acc + getAmount(t), 0)),
       chart: chartData,
       upcomingTransactions: pendingFixed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
       isAlert: forecastTarget < alertThreshold
@@ -150,9 +135,41 @@ export default function App() {
 
   const handleDelete = (id: string) => setTransactions(prev => prev.filter(t => t.id !== id));
 
+  // CORRECTION : Cette fonction ouvre maintenant le drawer pour modifier
+  const handleEdit = (t: any) => {
+    setEditingItem(t);
+    setIsDrawerOpen(true);
+  };
+
+  // Nouvelle fonction pour Dupliquer (Swipe Droite -> Edit, mais je garde la fonction au cas où)
   const handleDuplicate = (t: any) => {
     setEditingItem({ ...t, id: undefined, isCleared: false, date: new Date().toISOString().split('T')[0] });
     setIsDrawerOpen(true);
+  };
+
+  // Fonction Clôture M+1
+  const addOneMonth = (dateStr: string) => {
+    const d = new Date(dateStr);
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split('T')[0];
+  };
+
+  const handleCloseMonth = () => {
+    if (!window.confirm("Es-tu sûr de vouloir clôturer le mois ?\n\n- Le solde final deviendra le solde initial.\n- Les dépenses ponctuelles seront effacées.\n- Les échéances seront reportées au mois prochain.")) return;
+
+    const newStartingBalance = stats.forecastReal.toFixed(2);
+    const nextMonthTransactions = transactions
+      .filter(t => t.isFixed)
+      .map(t => ({
+        ...t,
+        id: uuidv4(),
+        isCleared: false,
+        date: addOneMonth(t.date)
+      }));
+
+    setStartingBalance(newStartingBalance);
+    setTransactions(nextMonthTransactions);
+    setActiveTab('dashboard');
   };
   
   return (
@@ -175,9 +192,10 @@ export default function App() {
                   <Hourglass size={14} className="text-blue-500" />
                   <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Mouvements à venir ({stats.upcomingTransactions.length})</h3>
                 </div>
+                {/* CORRECTION : onEdit appelle maintenant handleEdit qui ouvre le drawer */}
                 <TransactionList 
                   transactions={stats.upcomingTransactions} 
-                  onEdit={setEditingItem} 
+                  onEdit={handleEdit} 
                   onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} 
                   onDelete={handleDelete} 
                   onDuplicate={handleDuplicate}
@@ -188,9 +206,10 @@ export default function App() {
             )}
 
             <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">Derniers flux</h3>
+            {/* CORRECTION ICI AUSSI */}
             <TransactionList 
                 transactions={transactions.filter(t => !t.isFixed || t.isCleared)} 
-                onEdit={setEditingItem} 
+                onEdit={handleEdit} 
                 onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} 
                 onDelete={handleDelete} 
                 onDuplicate={handleDuplicate}
@@ -217,7 +236,7 @@ export default function App() {
               <span className="font-bold">Mode Sombre</span>
               <button onClick={() => setIsDark(!isDark)} className={`w-14 h-8 rounded-full relative transition-colors ${isDark ? 'bg-blue-600' : 'bg-slate-300'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDark ? 'translate-x-6' : ''}`} /></button>
             </div>
-            {/* Reste des settings identique... */}
+            
              <div className="p-6 bg-card rounded-[32px] border border-border space-y-2 shadow-sm">
               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Solde de départ</label>
               <input type="text" inputMode="decimal" value={startingBalance.replace('.', ',')} onChange={e => setStartingBalance(e.target.value.replace(',', '.'))} className="w-full bg-muted p-4 rounded-2xl font-black text-2xl outline-none" />
@@ -226,7 +245,32 @@ export default function App() {
               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Seuil d'alerte (Atterrissage)</label>
               <input type="number" value={alertThreshold} onChange={e => setAlertThreshold(Number(e.target.value))} className="w-full bg-muted p-4 rounded-2xl font-black text-2xl outline-none" />
             </div>
-            {/* Liste Enveloppes simplifiée pour la réponse... */}
+
+            {/* LISTE DES ENVELOPPES / CATÉGORIES */}
+            <div className="space-y-3">
+               <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-2">Budgets Mensuels</h3>
+               {envelopes.map((env, i) => (
+                 <div key={env.id} className="flex gap-2">
+                   <input type="text" value={env.name} onChange={e => {const n = [...envelopes]; n[i].name = e.target.value; setEnvelopes(n)}} className="bg-card p-4 rounded-2xl font-bold text-sm w-1/2 border border-border" />
+                   <input type="text" inputMode="decimal" value={env.amount} onChange={e => {const n = [...envelopes]; n[i].amount = e.target.value; setEnvelopes(n)}} className="bg-card p-4 rounded-2xl font-bold text-sm w-1/2 border border-border text-right" />
+                 </div>
+               ))}
+               <button onClick={() => setEnvelopes([...envelopes, { id: uuidv4(), name: 'Nouveau', amount: '0' }])} className="w-full py-4 rounded-2xl border-2 border-dashed border-border text-muted-foreground font-black uppercase text-xs">Ajouter une catégorie</button>
+            </div>
+
+            <div className="pt-8 pb-4">
+              <div className="h-px bg-border mb-8" />
+              <button 
+                onClick={handleCloseMonth}
+                className="w-full py-5 rounded-[24px] bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400 font-black uppercase text-xs tracking-widest border border-red-200 dark:border-red-900/50 active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                <Trash2 size={18} />
+                Clôturer le mois & Reporter
+              </button>
+              <p className="text-center text-[10px] text-muted-foreground mt-4 px-8 leading-relaxed">
+                Cette action basculera votre solde d'atterrissage en solde initial et générera vos échéances pour le mois suivant.
+              </p>
+            </div>
           </div>
         )}
       </main>
@@ -258,7 +302,7 @@ export default function App() {
         isOpen={!!viewCategory}
         onClose={() => setViewCategory(null)}
         transactions={transactions}
-        onEdit={(t) => { setViewCategory(null); setEditingItem(t); setIsDrawerOpen(true); }}
+        onEdit={(t) => { setViewCategory(null); handleEdit(t); }} 
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
         onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}
