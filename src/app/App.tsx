@@ -7,7 +7,7 @@ import { TransactionList } from '@/app/components/TransactionList';
 import { AddTransactionDrawer } from '@/app/components/AddTransactionDrawer';
 import { CategoryDetailsDrawer } from '@/app/components/CategoryDetailsDrawer';
 import { SimulatorDrawer } from '@/app/components/SimulatorDrawer';
-import { getCategoryStyle } from '@/app/utils/categories'; // Import des couleurs
+import { getCategoryStyle } from '@/app/utils/categories';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -64,16 +64,20 @@ export default function App() {
 
     const balInit = parse(startingBalance);
     
-    // 1. Solde Actuel
-    const clearedTransactions = transactions.filter(t => !t.isFixed || t.isCleared);
+    // --- NOUVELLE LOGIQUE DE CALCUL (RAPPROCHEMENT) ---
+    
+    // 1. Solde Actuel = Solde Initial + Toutes les transactions POINTÉES (isCleared)
+    // Qu'elles soient fixes ou variables, si ce n'est pas pointé, ce n'est pas en banque.
+    const clearedTransactions = transactions.filter(t => t.isCleared);
     const totalCleared = clearedTransactions.reduce((acc, t) => acc + getAmount(t), 0);
     const currentBal = balInit + totalCleared;
 
-    // 2. Reste à venir
-    const pendingFixed = transactions.filter(t => t.isFixed && !t.isCleared);
-    const totalPending = pendingFixed.reduce((acc, t) => acc + getAmount(t), 0);
+    // 2. Reste à venir = Tout ce qui n'est PAS pointé
+    const pendingTransactions = transactions.filter(t => !t.isCleared);
+    const totalPending = pendingTransactions.reduce((acc, t) => acc + getAmount(t), 0);
 
-    // 3. Budgets restants
+    // 3. Budgets restants (On utilise TOUTES les transactions pour le suivi budget)
+    // Même si ce n'est pas débité, le budget est entamé.
     const envs = envelopes.map(e => {
       const actual = transactions
         .filter(t => t.category === e.name)
@@ -95,13 +99,14 @@ export default function App() {
     const totalRemBudgetExpenses = envs.filter(e => !e.isRev).reduce((acc, e) => acc + e.rem, 0);
     const totalRemBudgetIncome = envs.filter(e => e.isRev).reduce((acc, e) => acc + e.rem, 0);
 
-    // 4. Atterrissage Prévu
+    // 4. Atterrissage Prévu (Théorique fin de mois)
     const forecastTarget = currentBal + totalPending - totalRemBudgetExpenses + totalRemBudgetIncome;
     
-    // 5. Atterrissage Réel
+    // 5. Atterrissage Réel (Si on s'arrête là)
+    // Solde actuel + tout ce qui est en attente de débit
     const forecastReal = currentBal + totalPending;
 
-    // Graphique (Camembert) avec couleurs harmonisées
+    // Graphique
     const expensesList = clearedTransactions.filter(t => t.type === 'expense');
     const incomeList = clearedTransactions.filter(t => t.type === 'income');
 
@@ -112,7 +117,6 @@ export default function App() {
       }, {})).map(([name, value]) => ({ 
         name, 
         value: Number(value), 
-        // UTILISATION DE LA COULEUR OFFICIELLE
         color: getCategoryStyle(name).color 
       })).sort((a, b) => b.value - a.value);
 
@@ -124,14 +128,22 @@ export default function App() {
       income: incomeList.reduce((acc, t) => acc + getAmount(t), 0),
       expenses: Math.abs(expensesList.reduce((acc, t) => acc + getAmount(t), 0)),
       chart: chartData,
-      upcomingTransactions: pendingFixed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+      // La liste "Mouvements à venir" contient tout ce qui n'est pas pointé
+      upcomingTransactions: pendingTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
       isAlert: forecastTarget < alertThreshold
     };
   }, [transactions, startingBalance, envelopes, alertThreshold]);
 
   const handleSave = (d: any) => {
     setTransactions(prev => {
-      const newD = { ...d, id: d.id || uuidv4() };
+      // Par défaut, une nouvelle transaction manuelle est NON pointée (isCleared: false)
+      // sauf si on est en train d'éditer une transaction existante qui a déjà son statut
+      const newD = { 
+        ...d, 
+        id: d.id || uuidv4(),
+        isCleared: d.isCleared !== undefined ? d.isCleared : false 
+      };
+      
       const exists = prev.find(t => t.id === newD.id);
       return exists ? prev.map(t => t.id === newD.id ? newD : t) : [newD, ...prev];
     });
@@ -157,16 +169,17 @@ export default function App() {
   };
 
   const handleCloseMonth = () => {
-    if (!window.confirm("Es-tu sûr de vouloir clôturer le mois ?\n\n- Le solde final deviendra le solde initial.\n- Les dépenses ponctuelles seront effacées.\n- Les échéances seront reportées au mois prochain.")) return;
+    if (!window.confirm("Es-tu sûr de vouloir clôturer le mois ?\n\n- Le solde final deviendra le solde initial.\n- Les opérations en attente seront reportées au mois prochain.")) return;
 
     const newStartingBalance = stats.forecastReal.toFixed(2);
+    
+    // On reporte TOUT ce qui n'est pas pointé (Fixe OU Variable)
     const nextMonthTransactions = transactions
-      .filter(t => t.isFixed)
+      .filter(t => !t.isCleared) // On garde tout ce qui est en attente
       .map(t => ({
         ...t,
-        id: uuidv4(),
-        isCleared: false,
-        date: addOneMonth(t.date)
+        id: uuidv4(), // On regénère les ID
+        date: t.isFixed ? addOneMonth(t.date) : t.date // Si fixe on décale le mois, si ponctuel (chèque non encaissé) on garde la date
       }));
 
     setStartingBalance(newStartingBalance);
@@ -228,11 +241,12 @@ export default function App() {
 
             <div className="bg-card p-6 rounded-[32px] border border-border shadow-sm"><CategoryChart data={stats.chart} /></div>
 
+            {/* SECTION: EN ATTENTE (Tout ce qui n'est pas pointé) */}
             {stats.upcomingTransactions.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-4 px-2">
                   <Hourglass size={14} className="text-blue-500" />
-                  <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Mouvements à venir ({stats.upcomingTransactions.length})</h3>
+                  <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Opérations en attente ({stats.upcomingTransactions.length})</h3>
                 </div>
                 <TransactionList 
                   transactions={stats.upcomingTransactions} 
@@ -246,9 +260,10 @@ export default function App() {
               </div>
             )}
 
-            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">Derniers flux</h3>
+            <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-4 px-2">Historique Pointé</h3>
+            {/* ICI : On affiche uniquement ce qui est pointé (isCleared) */}
             <TransactionList 
-                transactions={transactions.filter(t => !t.isFixed || t.isCleared)} 
+                transactions={transactions.filter(t => t.isCleared)} 
                 onEdit={handleEdit} 
                 onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })} 
                 onDelete={handleDelete} 
@@ -258,25 +273,22 @@ export default function App() {
           </div>
         )}
 
-        {/* ONGLET ANALYSES MIS A JOUR AVEC LES COULEURS */}
+        {/* ... LE RESTE NE CHANGE PAS ... */}
         {activeTab === 'stats' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-black italic uppercase">Analyses</h2>
             {stats.envs.map(s => {
-               // Récupération de la couleur harmonisée
                const style = getCategoryStyle(s.name);
                return (
                   <div key={s.id} className="bg-card p-6 rounded-[32px] border border-border space-y-3">
                     <div className="flex justify-between font-black uppercase text-sm">
                         <span className="flex items-center gap-2">
-                            {/* Pastille de couleur */}
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
                             {s.name}
                         </span>
                         <span>{Math.abs(s.real).toFixed(0)}€ / {s.target}€</span>
                     </div>
                     <div className="h-3 bg-muted rounded-full overflow-hidden">
-                        {/* Barre de progression colorée */}
                         <div 
                             className="h-full transition-all duration-500" 
                             style={{ width: `${Math.min(s.pct, 100)}%`, backgroundColor: style.color }} 
