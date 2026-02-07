@@ -85,7 +85,7 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
   // On supprime les verbes de commande ET les prépositions (de, à, chez...)
   // \b permet de ne matcher que les mots entiers (évite de casser "Demain" en supprimant "De")
   let description = cleanText
-    .replace(/\b(ajoute|ajouter|crée|créer|mets|mettre|une|un|le|la|les|dépense|de|du|d'|à|au|aux|chez|pour|par)\b/gi, '')
+    .replace(/\b(ajoute|ajouter|crée|créer|mets|mettre|une|un|le|la|les|dépense|de|du|d'|à|a|au|aux|chez|pour|par)\b/gi, '')
     .replace(/\s+/g, ' ') // Réduit les espaces multiples
     .trim();
 
