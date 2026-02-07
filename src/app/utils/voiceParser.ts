@@ -1,70 +1,75 @@
-export const parseVoiceInput = (text: string, categories: string[]) => {
-    const lower = text.toLowerCase();
-    const result = {
-      amount: '',
-      category: '',
-      date: new Date().toISOString().split('T')[0],
-      description: ''
-    };
+export const parseVoiceTransaction = (text: string, categories: string[]) => {
+  const lowerText = text.toLowerCase();
   
-    // 1. DÉTECTION DU MONTANT (Cherche "15.5" ou "15,5" ou "15 euros")
-    // L'API vocale renvoie souvent "15,20 €" ou "15.20"
-    const amountMatch = lower.match(/(\d+[.,]?\d*)\s?([€e]|euro|euros)?/);
-    if (amountMatch) {
-      result.amount = amountMatch[1].replace(',', '.');
-    }
+  let amount = '';
+  let category = '';
+  // Par défaut
+  let type = 'expense'; 
+  let isFixed = false;
+  let date = new Date().toISOString().split('T')[0];
+
+  // --- 1. DÉTECTION DU TYPE (Dépense vs Revenu) ---
+  const incomeKeywords = ['revenu', 'rentrée', 'encaissement', 'salaire', 'virement reçu', 'gain', 'remboursement'];
+  if (incomeKeywords.some(k => lowerText.includes(k))) {
+    type = 'income';
+    category = 'Revenus'; // Catégorie par défaut pour les revenus
+  }
+
+  // --- 2. DÉTECTION DE LA RÉCURRENCE ---
+  const fixedKeywords = ['fixe', 'récurrent', 'abonnement', 'mensuel', 'tous les mois', 'loyer', 'facture'];
+  if (fixedKeywords.some(k => lowerText.includes(k))) {
+    isFixed = true;
+  }
+
+  // --- 3. DÉTECTION DU MONTANT ---
+  const amountMatch = lowerText.match(/(\d+([.,]\d+)?)\s*(?:euros?|€)?\s*(\d+)?/);
   
-    // 2. DÉTECTION DE LA DATE
-    const today = new Date();
-    if (lower.includes('hier')) {
-      today.setDate(today.getDate() - 1);
-      result.date = today.toISOString().split('T')[0];
-    } else if (lower.includes('demain')) {
-      today.setDate(today.getDate() + 1);
-      result.date = today.toISOString().split('T')[0];
-    } else {
-        // Détection simple "6 février"
-        const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-        const dateMatch = lower.match(/(\d{1,2})\s(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)/);
-        
-        if (dateMatch) {
-            const day = parseInt(dateMatch[1]);
-            const monthIndex = months.indexOf(dateMatch[2]);
-            const currentYear = today.getFullYear();
-            // On crée la date (attention aux mois indexés à 0)
-            const d = new Date(currentYear, monthIndex, day);
-            // Si on est en décembre et qu'on dit "janvier", c'est probablement l'année prochaine (optionnel, restons simple pour l'instant)
-            // On ajuste le fuseau horaire pour éviter les décalages
-            const offset = d.getTimezoneOffset() * 60000; 
-            result.date = new Date(d.getTime() - offset).toISOString().split('T')[0];
-        }
-    }
-  
-    // 3. DÉTECTION DE LA CATÉGORIE
-    // On cherche si un des mots de tes catégories est dans la phrase
-    // Ex: "Alimentation" ou "Alim" -> Match avec "Alim."
-    const foundCat = categories.find(c => lower.includes(c.toLowerCase()) || lower.includes(c.toLowerCase().slice(0, 4)));
-    if (foundCat) {
-      result.category = foundCat;
-    }
-  
-    // 4. NETTOYAGE POUR LE LIBELLÉ
-    // On enlève le montant, la date (mots clés) et la catégorie pour ne garder que le reste
-    let cleanDesc = lower
-      .replace(amountMatch ? amountMatch[0] : '', '')
-      .replace('hier', '')
-      .replace('demain', '')
-      .replace('euros', '')
-      .replace('euro', '')
-      .replace('€', '')
-      .replace(foundCat?.toLowerCase() || '', '')
-      // On enlève aussi les mots de liaison parasites
-      .replace(/\s(en|dans|le|la|du|au)\s/g, ' ') 
-      .replace(/\s+/g, ' ') // Supprime les doubles espaces
-      .trim();
-  
-    // Capitalize première lettre
-    result.description = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
-  
-    return result;
-  };
+  if (amountMatch) {
+    let main = amountMatch[1].replace(',', '.');
+    let cents = amountMatch[3];
+    if (cents) amount = `${main}.${cents}`;
+    else amount = main;
+  }
+
+  // --- 4. DÉTECTION DE LA DATE ---
+  if (lowerText.includes('hier')) {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    date = d.toISOString().split('T')[0];
+  } else if (lowerText.includes('demain')) {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    date = d.toISOString().split('T')[0];
+  }
+
+  // --- 5. DÉTECTION DE LA CATÉGORIE (Si ce n'est pas déjà défini comme Revenu) ---
+  if (type === 'expense') {
+      const foundCat = categories.find(cat => lowerText.includes(cat.toLowerCase()));
+      if (foundCat) {
+        category = foundCat;
+      } else {
+        // Mapping manuel enrichi
+        if (lowerText.includes('mcdo') || lowerText.includes('burger') || lowerText.includes('courses') || lowerText.includes('lidl') || lowerText.includes('leclerc') || lowerText.includes('resto')) category = 'Alim.';
+        else if (lowerText.includes('essence') || lowerText.includes('péage') || lowerText.includes('parking')) category = 'Transport';
+        else if (lowerText.includes('edf') || lowerText.includes('électricité') || lowerText.includes('eau')) category = 'Energie';
+        else if (lowerText.includes('internet') || lowerText.includes('téléphone') || lowerText.includes('box')) category = 'Abo. et Tel';
+      }
+  }
+
+  // --- 6. NETTOYAGE DE LA DESCRIPTION ---
+  // On enlève le montant, les mots clés techniques pour garder le "vrai" libellé
+  let description = text
+    .replace(amountMatch?.[0] || '', '')
+    .replace(/euros?|€/gi, '')
+    // On enlève certains mots de commande, mais on garde "Abonnement" ou "Salaire" car ça fait un bon titre
+    .replace(/ajoute|crée|mets|une|un|dépense/gi, '') 
+    .trim();
+    
+  // Nettoyage final des espaces multiples
+  description = description.replace(/\s+/g, ' ').trim();
+  description = description.charAt(0).toUpperCase() + description.slice(1);
+
+  if (!description || description.length < 2) description = type === 'income' ? "Revenu divers" : "Dépense vocale";
+
+  return { amount, category, description, date, type, isFixed };
+};
