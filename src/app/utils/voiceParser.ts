@@ -8,22 +8,19 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
   let dateObj = new Date(); // Par défaut aujourd'hui
 
   // --- 1. DÉTECTION DU MONTANT ---
-  // On l'extrait tout de suite pour ne pas qu'il interfère avec les dates (ex: "le 10" vs "10 euros")
   const amountMatch = cleanText.match(/(\d+([.,]\d+)?)\s*(?:euros?|€)/);
   if (amountMatch) {
     let main = amountMatch[1].replace(',', '.');
     amount = main;
-    // On retire le montant du texte pour ne pas le confondre avec un jour du mois
     cleanText = cleanText.replace(amountMatch[0], ''); 
   }
 
-  // --- 2. DÉTECTION DE LA DATE (La partie complexe) ---
+  // --- 2. DÉTECTION DE LA DATE ---
   const months = {
     'janvier': 0, 'février': 1, 'mars': 2, 'avril': 3, 'mai': 4, 'juin': 5,
     'juillet': 6, 'août': 7, 'septembre': 8, 'octobre': 9, 'novembre': 10, 'décembre': 11
   };
 
-  // Regex pour "le 12 février" ou "le 12"
   const dateSpecificMatch = cleanText.match(/le\s+(\d{1,2})\s*(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)?/);
 
   if (dateSpecificMatch) {
@@ -31,16 +28,11 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
     const monthName = dateSpecificMatch[2];
 
     if (monthName && months[monthName as keyof typeof months] !== undefined) {
-      // Cas "le 12 février"
       dateObj.setMonth(months[monthName as keyof typeof months]);
       dateObj.setDate(day);
     } else {
-      // Cas "le 12" (mois en cours)
       dateObj.setDate(day);
-      // Si on est le 25 et qu'on dit "le 2", c'est probablement le mois prochain ? 
-      // Pour l'instant on reste simple : c'est le 2 du mois courant.
     }
-    // On retire la date du texte
     cleanText = cleanText.replace(dateSpecificMatch[0], '');
   } 
   else if (cleanText.includes('hier')) {
@@ -56,48 +48,55 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
   if (['revenu', 'salaire', 'encaissement'].some(k => cleanText.includes(k))) type = 'income';
   if (['fixe', 'abonnement', 'mensuel', 'loyer'].some(k => cleanText.includes(k))) isFixed = true;
 
-  // --- 4. DÉTECTION DE LA CATÉGORIE (Explicite VS Implicite) ---
+  // --- 4. DÉTECTION DE LA CATÉGORIE (Correction "Alim" vs "Alim.") ---
   
-  // A. RECHERCHE EXPLICITE ("Dans la catégorie X", "En X")
-  // On trie les catégories par longueur pour matcher "Alimentation" avant "Alim" si les deux existent
-  const sortedCats = [...categories].sort((a, b) => b.length - a.length);
-  
-  for (const cat of sortedCats) {
-    const catLower = cat.toLowerCase();
-    // On cherche "catégorie [Nom]" ou "dans [Nom]"
-    if (cleanText.includes(`catégorie ${catLower}`) || cleanText.includes(`dans ${catLower}`) || cleanText.includes(`en ${catLower}`)) {
-      category = cat;
-      // On nettoie pour ne pas garder "catégorie alimentation" dans le titre
-      cleanText = cleanText.replace(new RegExp(`(dans la|en)?\\s*catégorie\\s*${catLower}`, 'gi'), '');
-      cleanText = cleanText.replace(new RegExp(`(dans|en)\\s*${catLower}`, 'gi'), '');
-      break; // On a trouvé, on arrête
+  // Fonction pour "normaliser" un texte (enlever points, accents, etc pour la comparaison)
+  const normalize = (str: string) => str.toLowerCase().replace(/\./g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // A. RECHERCHE EXPLICITE
+  // On prépare une liste d'objets { original, normalized } triée par longueur
+  const normalizedCats = categories.map(c => ({
+    original: c,
+    normalized: normalize(c)
+  })).sort((a, b) => b.normalized.length - a.normalized.length);
+
+  for (const { original, normalized } of normalizedCats) {
+    // On cherche le nom normalisé (ex: "alim") dans le texte
+    // Regex pour "catégorie alim", "dans alim", "en alim"
+    const regex = new RegExp(`(dans la|en|catégorie)?\\s*(catégorie|dans|en)\\s*${normalized}`, 'i');
+    
+    // On vérifie si ça matche (en ignorant aussi les accents/points du texte parlé grâce à la regex permissive ou une double normalisation si besoin)
+    // Ici on fait simple : on regarde si le mot clé normalisé est présent après un déclencheur
+    if (cleanText.includes(`catégorie ${normalized}`) || cleanText.includes(`dans ${normalized}`) || cleanText.includes(`en ${normalized}`)) {
+      category = original;
+      
+      // Nettoyage : On enlève la partie trouvée
+      // On utilise le 'normalized' pour le pattern de suppression car c'est ce que l'utilisateur a dit (à peu près)
+      cleanText = cleanText.replace(new RegExp(`(dans la|en)?\\s*catégorie\\s*${normalized}`, 'gi'), '');
+      cleanText = cleanText.replace(new RegExp(`(dans|en)\\s*${normalized}`, 'gi'), '');
+      break;
     }
   }
 
-  // B. RECHERCHE IMPLICITE (Si pas trouvé en explicite)
+  // B. RECHERCHE IMPLICITE (Fallback)
   if (!category && type === 'expense') {
-    // Mapping manuel de secours
-    if (cleanText.includes('mcdo') || cleanText.includes('burger') || cleanText.includes('courses') || cleanText.includes('leclerc')) category = 'Alim.';
-    else if (cleanText.includes('essence') || cleanText.includes('péage')) category = 'Transport';
-    else if (cleanText.includes('edf')) category = 'Energie';
-    else if (cleanText.includes('loyer')) category = 'Loyer'; // Exemple
+    if (cleanText.includes('mcdo') || cleanText.includes('burger') || cleanText.includes('courses') || cleanText.includes('leclerc')) || cleanText.includes('carrefour')) category = 'Alim.';
+    else if (cleanText.includes('essence') || (cleanText.includes('carburant') || cleanText.includes('péage')) category = 'Transport';
+    else if (cleanText.includes('edf') || cleanText.includes('électricité')) category = 'Energie';
+    else if (cleanText.includes('internet') || cleanText.includes('téléphone') || cleanText.includes('box')) category = 'Abo. et Tel';
   }
   
-  // Si revenu, catégorie par défaut
   if (type === 'income' && !category) category = 'Revenus';
 
   // --- 5. NETTOYAGE FINAL DE LA DESCRIPTION ---
   let description = cleanText
-    .replace(/ajoute|crée|mets|une|un|dépense/gi, '') // Verbes de commande
-    .replace(/\s+/g, ' ') // Espaces doubles
+    .replace(/ajoute|crée|mets|une|un|dépense/gi, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
-  // Majuscule
   description = description.charAt(0).toUpperCase() + description.slice(1);
   if (!description || description.length < 2) description = "Opération vocale";
 
-  // Formatage final de la date YYYY-MM-DD
-  // Attention au décalage horaire UTC, on force le local
   const year = dateObj.getFullYear();
   const month = String(dateObj.getMonth() + 1).padStart(2, '0');
   const day = String(dateObj.getDate()).padStart(2, '0');
