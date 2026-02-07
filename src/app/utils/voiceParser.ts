@@ -1,11 +1,11 @@
 export const parseVoiceTransaction = (text: string, categories: string[]) => {
-  let cleanText = text.toLowerCase(); // On travaille sur une copie qu'on va "nettoyer" au fur et à mesure
+  let cleanText = text.toLowerCase(); 
   
   let amount = '';
   let category = '';
   let type = 'expense'; 
   let isFixed = false;
-  let dateObj = new Date(); // Par défaut aujourd'hui
+  let dateObj = new Date(); 
 
   // --- 1. DÉTECTION DU MONTANT ---
   const amountMatch = cleanText.match(/(\d+([.,]\d+)?)\s*(?:euros?|€)/);
@@ -49,20 +49,12 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
   if (['fixe', 'abonnement', 'mensuel', 'loyer'].some(k => cleanText.includes(k))) isFixed = true;
 
   // --- 4. DÉTECTION DE LA CATÉGORIE ---
-  
-  // Fonction pour "normaliser" un texte
   const normalize = (str: string) => str.toLowerCase().replace(/\./g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-  // A. RECHERCHE EXPLICITE
-  const normalizedCats = categories.map(c => ({
-    original: c,
-    normalized: normalize(c)
-  })).sort((a, b) => b.normalized.length - a.normalized.length);
+  // A. EXPLICITE
+  const normalizedCats = categories.map(c => ({ original: c, normalized: normalize(c) })).sort((a, b) => b.normalized.length - a.normalized.length);
 
   for (const { original, normalized } of normalizedCats) {
-    // Regex pour "catégorie alim", "dans alim", "en alim"
-    const regex = new RegExp(`(dans la|en|catégorie)?\\s*(catégorie|dans|en)\\s*${normalized}`, 'i');
-    
     if (cleanText.includes(`catégorie ${normalized}`) || cleanText.includes(`dans ${normalized}`) || cleanText.includes(`en ${normalized}`)) {
       category = original;
       cleanText = cleanText.replace(new RegExp(`(dans la|en)?\\s*catégorie\\s*${normalized}`, 'gi'), '');
@@ -71,9 +63,8 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
     }
   }
 
-  // B. RECHERCHE IMPLICITE (Fallback)
+  // B. IMPLICITE
   if (!category && type === 'expense') {
-    // Liste enrichie et syntaxe corrigée
     if (cleanText.includes('mcdo') || cleanText.includes('burger') || cleanText.includes('courses') || cleanText.includes('leclerc') || cleanText.includes('carrefour') || cleanText.includes('lidl') || cleanText.includes('auchan') || cleanText.includes('intermarché')) {
         category = 'Alim.';
     }
@@ -91,9 +82,11 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
   if (type === 'income' && !category) category = 'Revenus';
 
   // --- 5. NETTOYAGE FINAL DE LA DESCRIPTION ---
+  // On supprime les verbes de commande ET les prépositions (de, à, chez...)
+  // \b permet de ne matcher que les mots entiers (évite de casser "Demain" en supprimant "De")
   let description = cleanText
-    .replace(/ajoute|crée|mets|une|un|dépense/gi, '')
-    .replace(/\s+/g, ' ')
+    .replace(/\b(ajoute|ajouter|crée|créer|mets|mettre|une|un|le|la|les|dépense|de|du|d'|à|au|aux|chez|pour|par)\b/gi, '')
+    .replace(/\s+/g, ' ') // Réduit les espaces multiples
     .trim();
 
   description = description.charAt(0).toUpperCase() + description.slice(1);
