@@ -48,30 +48,23 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
   if (['revenu', 'salaire', 'encaissement'].some(k => cleanText.includes(k))) type = 'income';
   if (['fixe', 'abonnement', 'mensuel', 'loyer'].some(k => cleanText.includes(k))) isFixed = true;
 
-  // --- 4. DÉTECTION DE LA CATÉGORIE (Correction "Alim" vs "Alim.") ---
+  // --- 4. DÉTECTION DE LA CATÉGORIE ---
   
-  // Fonction pour "normaliser" un texte (enlever points, accents, etc pour la comparaison)
+  // Fonction pour "normaliser" un texte
   const normalize = (str: string) => str.toLowerCase().replace(/\./g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
   // A. RECHERCHE EXPLICITE
-  // On prépare une liste d'objets { original, normalized } triée par longueur
   const normalizedCats = categories.map(c => ({
     original: c,
     normalized: normalize(c)
   })).sort((a, b) => b.normalized.length - a.normalized.length);
 
   for (const { original, normalized } of normalizedCats) {
-    // On cherche le nom normalisé (ex: "alim") dans le texte
     // Regex pour "catégorie alim", "dans alim", "en alim"
     const regex = new RegExp(`(dans la|en|catégorie)?\\s*(catégorie|dans|en)\\s*${normalized}`, 'i');
     
-    // On vérifie si ça matche (en ignorant aussi les accents/points du texte parlé grâce à la regex permissive ou une double normalisation si besoin)
-    // Ici on fait simple : on regarde si le mot clé normalisé est présent après un déclencheur
     if (cleanText.includes(`catégorie ${normalized}`) || cleanText.includes(`dans ${normalized}`) || cleanText.includes(`en ${normalized}`)) {
       category = original;
-      
-      // Nettoyage : On enlève la partie trouvée
-      // On utilise le 'normalized' pour le pattern de suppression car c'est ce que l'utilisateur a dit (à peu près)
       cleanText = cleanText.replace(new RegExp(`(dans la|en)?\\s*catégorie\\s*${normalized}`, 'gi'), '');
       cleanText = cleanText.replace(new RegExp(`(dans|en)\\s*${normalized}`, 'gi'), '');
       break;
@@ -80,10 +73,19 @@ export const parseVoiceTransaction = (text: string, categories: string[]) => {
 
   // B. RECHERCHE IMPLICITE (Fallback)
   if (!category && type === 'expense') {
-    if (cleanText.includes('mcdo') || cleanText.includes('burger') || cleanText.includes('courses') || cleanText.includes('leclerc')) || cleanText.includes('carrefour')) category = 'Alim.';
-    else if (cleanText.includes('essence') || (cleanText.includes('carburant') || cleanText.includes('péage')) category = 'Transport';
-    else if (cleanText.includes('edf') || cleanText.includes('électricité')) category = 'Energie';
-    else if (cleanText.includes('internet') || cleanText.includes('téléphone') || cleanText.includes('box')) category = 'Abo. et Tel';
+    // Liste enrichie et syntaxe corrigée
+    if (cleanText.includes('mcdo') || cleanText.includes('burger') || cleanText.includes('courses') || cleanText.includes('leclerc') || cleanText.includes('carrefour') || cleanText.includes('lidl') || cleanText.includes('auchan') || cleanText.includes('intermarché')) {
+        category = 'Alim.';
+    }
+    else if (cleanText.includes('essence') || cleanText.includes('péage') || cleanText.includes('parking') || cleanText.includes('carburant')) {
+        category = 'Transport';
+    }
+    else if (cleanText.includes('edf') || cleanText.includes('électricité') || cleanText.includes('eau') || cleanText.includes('gaz')) {
+        category = 'Energie';
+    }
+    else if (cleanText.includes('internet') || cleanText.includes('téléphone') || cleanText.includes('box') || cleanText.includes('forfait')) {
+        category = 'Abo. et Tel';
+    }
   }
   
   if (type === 'income' && !category) category = 'Revenus';
