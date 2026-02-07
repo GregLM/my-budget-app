@@ -8,6 +8,8 @@ import { AddTransactionDrawer } from '@/app/components/AddTransactionDrawer';
 import { CategoryDetailsDrawer } from '@/app/components/CategoryDetailsDrawer';
 import { SimulatorDrawer } from '@/app/components/SimulatorDrawer';
 import { getCategoryStyle } from '@/app/utils/categories';
+import { Mic } from 'lucide-react'; // Ajoute l'icône micro
+import { parseVoiceInput } from '@/app/utils/voiceParser';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -227,6 +229,83 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   
+// --- LOGIQUE VOCALE & LONG PRESS ---
+  const [isListening, setIsListening] = useState(false);
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const startListening = () => {
+    // Vérification compatibilité
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.");
+      return;
+    }
+
+    // Vibration haptique pour confirmer le mode vocal
+    if (navigator.vibrate) navigator.vibrate(200);
+
+    setIsListening(true);
+    
+    // @ts-ignore (Typescript ne connait pas toujours webkitSpeechRecognition par défaut)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.lang = 'fr-FR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setIsListening(false);
+      
+      // On parse le résultat
+      const parsed = parseVoiceInput(transcript, envelopes.map(e => e.name));
+      
+      // On pré-remplit et on ouvre le drawer
+      setEditingItem({
+        id: undefined, // Nouveau
+        amount: parsed.amount,
+        description: parsed.description,
+        category: parsed.category,
+        date: parsed.date,
+        isCleared: false,
+        type: 'expense' // Par défaut dépense
+      });
+      setIsDrawerOpen(true);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Erreur vocale", event.error);
+      setIsListening(false);
+      alert("Je n'ai pas bien entendu.");
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  // Gestion du Clic vs Long Press
+  const handleTouchStart = () => {
+    pressTimer.current = setTimeout(() => {
+        startListening();
+        pressTimer.current = null; // Reset pour ne pas déclencher le onClick
+    }, 800); // 800ms = Clic long
+  };
+
+  const handleTouchEnd = (e: React.MouseEvent | React.TouchEvent) => {
+    if (pressTimer.current) {
+        // Si le timer existe encore, c'est que les 800ms ne sont pas passées -> C'est un clic court
+        clearTimeout(pressTimer.current);
+        pressTimer.current = null;
+        // Action clic court standard :
+        setEditingItem(null); 
+        setIsDrawerOpen(true);
+    }
+    // Si pressTimer est null ici, c'est que le timeout a déjà tourné -> le long press a déjà été géré
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
       <main className="flex-1 overflow-y-auto px-6 pt-12 pb-32">
@@ -366,8 +445,17 @@ export default function App() {
             <button onClick={() => setActiveTab('stats')}><PieChart size={24} className={activeTab === 'stats' ? 'text-blue-600' : 'text-muted-foreground'} /></button>
           </div>
           <div className="absolute left-1/2 -translate-x-1/2 -top-6">
-            <button onClick={() => { setEditingItem(null); setIsDrawerOpen(true); }} className="bg-blue-600 text-white p-4 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all">
-              <Plus size={32} strokeWidth={3} />
+            <button 
+                // Pour Desktop (souris)
+                onMouseDown={handleTouchStart}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={() => pressTimer.current && clearTimeout(pressTimer.current)}
+                // Pour Mobile (tactile)
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                className={`text-white p-4 rounded-full shadow-2xl border-8 border-background active:scale-90 transition-all ${isListening ? 'bg-red-500 animate-pulse' : 'bg-blue-600'}`}
+            >
+              {isListening ? <Mic size={32} strokeWidth={3} /> : <Plus size={32} strokeWidth={3} />}
             </button>
           </div>
           <div className="flex items-center justify-end gap-6 w-1/3">
