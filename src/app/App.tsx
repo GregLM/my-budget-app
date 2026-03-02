@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Home, PieChart, Settings, Wallet, Target, Hourglass, Trash2, Download, Upload, Mic } from 'lucide-react';
+import { Plus, Home, PieChart, Settings, Wallet, Target, Hourglass, Trash2, Download, Upload, Mic, TrendingDown, TrendingUp } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { BalanceCard } from '@/app/components/BalanceCard';
 import { CategoryChart } from '@/app/components/CategoryChart';
@@ -161,38 +161,46 @@ export default function App() {
   const handleCloseMonth = () => {
     if (!window.confirm("Es-tu sûr de vouloir clôturer le mois ?\n\n- Le solde actuel (pointé) deviendra le solde initial.\n- Les opérations variables non pointées seront conservées.\n- Les opérations fixes seront générées pour le mois prochain.")) return;
 
-    // 1. CRÉATION DE L'ARCHIVE (Lecture seule du mois qui se termine)
-    // On génère un nom automatique, ex: "Février 2026"
-    const monthName = new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+    // 1. DÉTECTION DU MOIS (Logique intelligente)
+    const d = new Date();
+    // Si on clôture avant le 15 du mois, c'est qu'on clôture probablement le mois précédent
+    if (d.getDate() < 15) {
+      d.setMonth(d.getMonth() - 1);
+    }
+    let defaultMonth = d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+    defaultMonth = defaultMonth.charAt(0).toUpperCase() + defaultMonth.slice(1);
+    
+    // On demande confirmation à l'utilisateur
+    const archiveName = window.prompt("Nom du mois clôturé :", defaultMonth);
+    if (!archiveName) return; // Annulation si vide ou annulé
+
+    // 2. CRÉATION DE L'ARCHIVE
     const currentArchive = {
       id: uuidv4(),
-      month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+      month: archiveName,
       startingBalance,
-      finalBalance: stats.balance, // Le vrai solde pointé
+      finalBalance: stats.balance,
       transactions: [...transactions],
-      envelopes: [...envelopes]
+      // TRÈS IMPORTANT : On sauvegarde 'stats.envs' pour figer les vrais montants dépensés (le réalisé)
+      envs: [...stats.envs] 
     };
 
-    // 2. PRÉPARATION DU MOIS SUIVANT (Les A-Nouveaux)
-    
-    // A. Reprise des variables non pointées (Chèques non encaissés, etc.)
+    // 3. PRÉPARATION DU MOIS SUIVANT (A-Nouveaux)
     const carryOverVariables = transactions.filter(t => !t.isCleared && !t.isFixed);
 
-    // B. Reprise des fixes (On les duplique, on décale la date et on désélectionne)
-    // Pour éviter les doublons si un fixe n'était pas coché, on se base sur les fixes uniques du mois.
     const nextMonthFixed = transactions
       .filter(t => t.isFixed)
       .map(t => ({
         ...t,
-        id: uuidv4(), // Nouveau flux
-        isCleared: false, // À pointer le mois prochain
-        date: addOneMonth(t.date) // +1 mois
+        id: uuidv4(), 
+        isCleared: false, 
+        date: addOneMonth(t.date) 
       }));
 
-    // 3. APPLICATION DE LA BASCULE
-    setArchives(prev => [currentArchive, ...prev]); // Ajout à l'historique
-    setStartingBalance(stats.balance.toFixed(2)); // Nouveau solde initial
-    setTransactions([...carryOverVariables, ...nextMonthFixed]); // Nouveaux flux
+    // 4. BASCULE
+    setArchives(prev => [currentArchive, ...prev]);
+    setStartingBalance(stats.balance.toFixed(2)); 
+    setTransactions([...carryOverVariables, ...nextMonthFixed]); 
     
     setActiveTab('dashboard');
   };
@@ -343,15 +351,54 @@ export default function App() {
         {activeTab === 'stats' && (
           <div className="space-y-4">
             <h2 className="text-3xl font-black italic uppercase">Analyses</h2>
+            
             {stats.envs.map(s => {
                const style = getCategoryStyle(s.name);
+               
+               // --- LOGIQUE M-1 ---
+               // On récupère la dernière archive (s'il y en a une)
+               const lastArchive = archives[0]; 
+               // On cherche l'enveloppe équivalente dans le mois précédent
+               const m1Env = lastArchive?.envs?.find((e: any) => e.name === s.name);
+               const m1Real = m1Env ? Math.abs(m1Env.real) : null;
+               
+               // Calcul de la tendance
+               const currentReal = Math.abs(s.real);
+               const isTrendingUp = m1Real !== null && currentReal > m1Real;
+               const isTrendingDown = m1Real !== null && currentReal < m1Real;
+
                return (
                   <div key={s.id} className="bg-card p-6 rounded-[32px] border border-border space-y-3">
+                    
+                    {/* EN-TÊTE : NOM ET MONTANTS DU MOIS EN COURS */}
                     <div className="flex justify-between font-black uppercase text-sm">
-                        <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />{s.name}</span>
-                        <span>{Math.abs(s.real).toFixed(0)}€ / {s.target}€</span>
+                        <span className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
+                            {s.name}
+                        </span>
+                        <span>{currentReal.toFixed(0)}€ / {s.target}€</span>
                     </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden"><div className="h-full transition-all duration-500" style={{ width: `${Math.min(s.pct, 100)}%`, backgroundColor: style.color }} /></div>
+
+                    {/* BARRE DE PROGRESSION */}
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                        <div 
+                            className="h-full transition-all duration-500" 
+                            style={{ width: `${Math.min(s.pct, 100)}%`, backgroundColor: style.color }} 
+                        />
+                    </div>
+
+                    {/* COMPARAISON M-1 */}
+                    {m1Real !== null && (
+                      <div className="flex justify-between items-center pt-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span>Réalisé M-1 : {m1Real.toFixed(0)} €</span>
+                        
+                        {/* Indicateur visuel (Vert si on a dépensé moins, Rouge si on a dépensé plus) */}
+                        {isTrendingDown && <span className="flex items-center gap-1 text-emerald-500"><TrendingDown size={14} /> Baisse</span>}
+                        {isTrendingUp && <span className="flex items-center gap-1 text-red-500"><TrendingUp size={14} /> Hausse</span>}
+                        {m1Real === currentReal && <span>Stable</span>}
+                      </div>
+                    )}
+
                   </div>
                );
             })}
