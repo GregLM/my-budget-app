@@ -55,7 +55,7 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
         <Drawer.Content className="bg-background flex flex-col rounded-t-[32px] fixed bottom-0 left-0 right-0 z-50 outline-none max-h-[96dvh] h-auto border-t border-border shadow-2xl"
           onPointerDownOutside={(e) => e.preventDefault()}>
           
-          <div className="flex-1 overflow-y-auto p-5 pb-2">
+          <div className="flex-1 overflow-y-auto p-5 pb-[350px]">
             <div className="mx-auto w-12 h-1.5 rounded-full bg-muted mb-6" />
             
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
@@ -81,7 +81,8 @@ export function AddTransactionDrawer({ open, onOpenChange, onAdd, initialData, o
                         type="text" 
                         {...register('description', { required: true })} 
                         placeholder="Quoi ?" 
-                        className="bg-transparent font-bold text-sm outline-none w-full placeholder:text-muted-foreground/50" 
+                        className="bg-transparent font-bold text-[16px] md:text-sm outline-none w-full placeholder:text-muted-foreground/50" 
+                        style={{ fontSize: '16px' }}
                         autoComplete="off"
                         onFocus={() => setIsTyping(true)}
                         onBlur={() => setIsTyping(false)}
