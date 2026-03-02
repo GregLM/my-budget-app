@@ -186,19 +186,6 @@ export default function App() {
       envs: [...stats.envs] 
     };
 
-    const handleDeleteArchive = (e: React.MouseEvent, archiveId: string) => {
-      e.stopPropagation(); // Empêche l'ouverture du tiroir de détail
-      
-      if (window.confirm("Es-tu sûr de vouloir supprimer cette archive définitivement ? Cette action est irréversible.")) {
-        setArchives(prev => prev.filter(a => a.id !== archiveId));
-        
-        // Sécurité : si l'archive supprimée était celle ouverte, on ferme le tiroir
-        if (selectedArchive?.id === archiveId) {
-          setSelectedArchive(null);
-        }
-      }
-    };
-
     // 3. PRÉPARATION DU MOIS SUIVANT (A-Nouveaux)
     const carryOverVariables = transactions.filter(t => !t.isCleared && !t.isFixed);
 
@@ -217,6 +204,19 @@ export default function App() {
     setTransactions([...carryOverVariables, ...nextMonthFixed]); 
     
     setActiveTab('dashboard');
+  };
+
+  const handleDeleteArchive = (e: React.MouseEvent, archiveId: string) => {
+    e.stopPropagation(); // Empêche l'ouverture du tiroir de détail
+    
+    if (window.confirm("Es-tu sûr de vouloir supprimer cette archive définitivement ? Cette action est irréversible.")) {
+      setArchives(prev => prev.filter(a => a.id !== archiveId));
+      
+      // Sécurité : si l'archive supprimée était celle ouverte, on ferme le tiroir
+      if (selectedArchive?.id === archiveId) {
+        setSelectedArchive(null);
+      }
+    }
   };
 
   const handleExport = () => {
