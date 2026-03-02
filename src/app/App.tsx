@@ -38,6 +38,7 @@ export default function App() {
   ]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [archives, setArchives] = useState<any[]>([]);
   
   // --- LOGIQUE VOCALE ---
   const recognitionRef = useRef<any>(null);
@@ -54,13 +55,17 @@ export default function App() {
       setEnvelopes(p.envelopes || []);
       setIsDark(p.isDark || false);
       setAlertThreshold(p.alertThreshold || 100);
+      setArchives(p.archives || []);
     }
   }, []);
 
+  // SAUVEGARDE AUTOMATIQUE À CHAQUE CHANGEMENT IMPORTANT
   useEffect(() => {
-    localStorage.setItem('eco_budget_final', JSON.stringify({ transactions, startingBalance, envelopes, isDark, alertThreshold }));
+    localStorage.setItem('eco_budget_final', JSON.stringify({ 
+        transactions, startingBalance, envelopes, isDark, alertThreshold, archives 
+    }));
     document.documentElement.classList.toggle('dark', isDark);
-  }, [transactions, startingBalance, envelopes, isDark, alertThreshold]);
+  }, [transactions, startingBalance, envelopes, isDark, alertThreshold, archives]);
 
   const stats = useMemo(() => {
     const parse = (v: any) => parseFloat(v?.toString().replace(/\s/g, '').replace(',', '.') || "0") || 0;
@@ -154,17 +159,41 @@ export default function App() {
   };
 
   const handleCloseMonth = () => {
-    if (!window.confirm("Es-tu sûr de vouloir clôturer le mois ?")) return;
-    const newStartingBalance = stats.forecastReal.toFixed(2);
-    const nextMonthTransactions = transactions
-      .filter(t => !t.isCleared)
+    if (!window.confirm("Es-tu sûr de vouloir clôturer le mois ?\n\n- Le solde actuel (pointé) deviendra le solde initial.\n- Les opérations variables non pointées seront conservées.\n- Les opérations fixes seront générées pour le mois prochain.")) return;
+
+    // 1. CRÉATION DE L'ARCHIVE (Lecture seule du mois qui se termine)
+    // On génère un nom automatique, ex: "Février 2026"
+    const monthName = new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+    const currentArchive = {
+      id: uuidv4(),
+      month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+      startingBalance,
+      finalBalance: stats.balance, // Le vrai solde pointé
+      transactions: [...transactions],
+      envelopes: [...envelopes]
+    };
+
+    // 2. PRÉPARATION DU MOIS SUIVANT (Les A-Nouveaux)
+    
+    // A. Reprise des variables non pointées (Chèques non encaissés, etc.)
+    const carryOverVariables = transactions.filter(t => !t.isCleared && !t.isFixed);
+
+    // B. Reprise des fixes (On les duplique, on décale la date et on désélectionne)
+    // Pour éviter les doublons si un fixe n'était pas coché, on se base sur les fixes uniques du mois.
+    const nextMonthFixed = transactions
+      .filter(t => t.isFixed)
       .map(t => ({
         ...t,
-        id: uuidv4(),
-        date: t.isFixed ? addOneMonth(t.date) : t.date
+        id: uuidv4(), // Nouveau flux
+        isCleared: false, // À pointer le mois prochain
+        date: addOneMonth(t.date) // +1 mois
       }));
-    setStartingBalance(newStartingBalance);
-    setTransactions(nextMonthTransactions);
+
+    // 3. APPLICATION DE LA BASCULE
+    setArchives(prev => [currentArchive, ...prev]); // Ajout à l'historique
+    setStartingBalance(stats.balance.toFixed(2)); // Nouveau solde initial
+    setTransactions([...carryOverVariables, ...nextMonthFixed]); // Nouveaux flux
+    
     setActiveTab('dashboard');
   };
 
@@ -365,6 +394,22 @@ export default function App() {
               <div className="h-px bg-border mb-8" />
               <button onClick={handleCloseMonth} className="w-full py-5 rounded-[24px] bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400 font-black uppercase text-xs tracking-widest border border-red-200 dark:border-red-900/50 active:scale-95 transition-all flex items-center justify-center gap-3"><Trash2 size={18} />Clôturer le mois & Reporter</button>
             </div>
+            {archives.length > 0 && (
+              <div className="pt-4">
+                <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-2 mb-3">Archives (Lecture Seule)</h3>
+                <div className="space-y-2">
+                  {archives.map(arch => (
+                    <div key={arch.id} className="bg-card p-4 rounded-2xl border border-border flex justify-between items-center">
+                      <span className="font-bold text-sm">{arch.month}</span>
+                      <div className="text-right">
+                        <span className="block text-xs text-muted-foreground">Solde final</span>
+                        <span className="font-black text-sm">{arch.finalBalance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
