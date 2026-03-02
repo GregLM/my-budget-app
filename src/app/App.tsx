@@ -8,8 +8,8 @@ import { AddTransactionDrawer } from '@/app/components/AddTransactionDrawer';
 import { CategoryDetailsDrawer } from '@/app/components/CategoryDetailsDrawer';
 import { SimulatorDrawer } from '@/app/components/SimulatorDrawer';
 import { getCategoryStyle } from '@/app/utils/categories';
-// Assure-toi que ce nom correspond bien à ton fichier voiceParser.ts
 import { parseVoiceTransaction } from '@/app/utils/voiceParser';
+import { ArchiveDetailsDrawer } from '@/app/components/ArchiveDetailsDrawer';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -39,7 +39,8 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [archives, setArchives] = useState<any[]>([]);
-  
+  const [selectedArchive, setSelectedArchive] = useState<any | null>(null);
+
   // --- LOGIQUE VOCALE ---
   const recognitionRef = useRef<any>(null);
   const [isListening, setIsListening] = useState(false);
@@ -183,6 +184,19 @@ export default function App() {
       transactions: [...transactions],
       // TRÈS IMPORTANT : On sauvegarde 'stats.envs' pour figer les vrais montants dépensés (le réalisé)
       envs: [...stats.envs] 
+    };
+
+    const handleDeleteArchive = (e: React.MouseEvent, archiveId: string) => {
+      e.stopPropagation(); // Empêche l'ouverture du tiroir de détail
+      
+      if (window.confirm("Es-tu sûr de vouloir supprimer cette archive définitivement ? Cette action est irréversible.")) {
+        setArchives(prev => prev.filter(a => a.id !== archiveId));
+        
+        // Sécurité : si l'archive supprimée était celle ouverte, on ferme le tiroir
+        if (selectedArchive?.id === archiveId) {
+          setSelectedArchive(null);
+        }
+      }
     };
 
     // 3. PRÉPARATION DU MOIS SUIVANT (A-Nouveaux)
@@ -441,17 +455,38 @@ export default function App() {
               <div className="h-px bg-border mb-8" />
               <button onClick={handleCloseMonth} className="w-full py-5 rounded-[24px] bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400 font-black uppercase text-xs tracking-widest border border-red-200 dark:border-red-900/50 active:scale-95 transition-all flex items-center justify-center gap-3"><Trash2 size={18} />Clôturer le mois & Reporter</button>
             </div>
+            {/* SECTION ARCHIVES DANS LES PARAMÈTRES */}
             {archives.length > 0 && (
               <div className="pt-4">
                 <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-2 mb-3">Archives (Lecture Seule)</h3>
                 <div className="space-y-2">
-                  {archives.map(arch => (
-                    <div key={arch.id} className="bg-card p-4 rounded-2xl border border-border flex justify-between items-center">
+                {archives.map(arch => (
+                    <div 
+                      key={arch.id} 
+                      onClick={() => setSelectedArchive(arch)}
+                      className="bg-card p-4 rounded-2xl border border-border flex justify-between items-center active:scale-95 transition-transform cursor-pointer group"
+                    >
                       <span className="font-bold text-sm">{arch.month}</span>
-                      <div className="text-right">
-                        <span className="block text-xs text-muted-foreground">Solde final</span>
-                        <span className="font-black text-sm">{arch.finalBalance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
+                      
+                      {/* Conteneur pour le solde et le bouton supprimer */}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <span className="block text-xs text-muted-foreground">Solde final</span>
+                          <span className="font-black text-sm text-blue-600 dark:text-blue-400">
+                            {arch.finalBalance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+                          </span>
+                        </div>
+                        
+                        {/* BOUTON SUPPRIMER */}
+                        <button 
+                          onClick={(e) => handleDeleteArchive(e, arch.id)}
+                          className="p-2 text-muted-foreground hover:text-red-500 active:bg-red-100 dark:active:bg-red-900/30 rounded-full transition-colors"
+                          title="Supprimer l'archive"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
+
                     </div>
                   ))}
                 </div>
@@ -513,6 +548,8 @@ export default function App() {
       <AddTransactionDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} onAdd={handleSave} initialData={editingItem} categories={envelopes.map(e => e.name)} onDelete={id => {setTransactions(transactions.filter(t => t.id !== id)); setIsDrawerOpen(false);}} />
       <CategoryDetailsDrawer category={viewCategory} isOpen={!!viewCategory} onClose={() => setViewCategory(null)} transactions={transactions} onEdit={(t) => { setViewCategory(null); handleEdit(t); }} onDelete={handleDelete} onDuplicate={handleDuplicate} onToggleCheck={(t) => handleSave({ ...t, isCleared: !t.isCleared })}/>
       <SimulatorDrawer open={isSimulatorOpen} onOpenChange={setIsSimulatorOpen} currentForecast={stats.forecastTarget} alertThreshold={alertThreshold} />
+      <ArchiveDetailsDrawer archive={selectedArchive} isOpen={!!selectedArchive} onClose={() => setSelectedArchive(null)} 
+      />
     </div>
   );
 }
